@@ -1,0 +1,4 @@
+/.devtk/
+target/
+.*
+!.gitignore
