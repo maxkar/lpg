@@ -69,6 +69,26 @@ final object SParser {
   }
 
 
+  /**
+   * Parses enitre files as s-expression using given
+   * attributes/extensions parser.
+   * @param attrParser extension parser.
+   * @param input input to parse.
+   */
+  def parseSFile
+        (attrParser : Input ⇒ Attributes)
+        (input : Input)
+      : SList[BaseItem] = {
+    input.dropWhites
+
+    val start = attrParser(input)
+    val items = readSList(attrParser, input)
+    if (!input.atEof)
+      throw new TrailingData(input.openingAttributes)
+    SList(items, start)
+  }
+
+
   /** Reads an escaped character. */
   def readEsc(input : Input) : Char = {
     input.dropN(1)
@@ -88,7 +108,7 @@ final object SParser {
 
 
   /** Reads a string. */
-  private def readString(start : Attributes, input : Input) : BaseItem = {
+  def readString(start : Attributes, input : Input) : BaseItem = {
     val rb = new StringBuilder
 
     while (true) {
@@ -118,7 +138,7 @@ final object SParser {
 
 
   /** Reads a numeric item. */
-  private def readNum(input : Input) : BaseItem = {
+  def readNum(input : Input) : BaseItem = {
 
     val hsign = input.peek match {
       case '-' ⇒

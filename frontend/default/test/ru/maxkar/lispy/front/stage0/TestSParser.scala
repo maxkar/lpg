@@ -51,6 +51,11 @@ final class TestSParser {
     e(i("alert"), e(i("<"), i("x"), "abc")) =? "(alert (< x \"abc\"))"
   }
 
+  @Test
+  def testBody() : Unit = {
+    e(i("abc"), e(i("xxx"))) ==? "abc (xxx)"
+  }
+
 
   private def n(value : Int) : SExpression[BaseItem] =
     SLeaf(BaseInteger(BigInteger.valueOf(value)), empty)
@@ -77,6 +82,15 @@ final class TestSParser {
     def =? (other : String) = {
       val parsed =
         SParser.parseSExpression(
+          Function.const(empty))(Input.fromCharArray(other.toCharArray()))
+      val pure = purify(parsed)
+      assertEquals(base, pure)
+    }
+
+    @inline
+    def ==? (other : String) = {
+      val parsed =
+        SParser.parseSFile(
           Function.const(empty))(Input.fromCharArray(other.toCharArray()))
       val pure = purify(parsed)
       assertEquals(base, pure)
