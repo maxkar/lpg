@@ -3,6 +3,8 @@ package ru.maxkar.lispy.front.parser
 import ru.maxkar.lispy.front.Attribute
 import ru.maxkar.lispy.front.Attributes
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * Base trait for parser input stream. Input instances are mutable.
  * However, some parsers may use backtracking/checking,
@@ -64,6 +66,32 @@ object Input {
   /** Starting offset in characters. */
   val endCharOffset : Attribute[Int] =
     new Attribute[Int]("Ending char offset")
+
+
+  /** Source file. */
+  val sourceFile : Attribute[java.io.File] =
+    new Attribute[java.io.File]("Source file")
+
+
+  /** Layouts a character array. */
+  def layoutOfArray(items : Array[Char]) : TextLayout = {
+    val buffer = new ArrayBuffer[Int]
+
+    var ptr = 0
+    while (ptr < items.length) {
+      items(ptr) match {
+        case '\n' ⇒ buffer += ptr
+        case '\r' ⇒
+          if (ptr + 1 == items.length || items(ptr + 1) != '\n')
+            buffer += ptr
+        case _ ⇒  ()
+      }
+
+      ptr += 1
+    }
+
+    new TextLayout(buffer.toArray)
+  }
 
 
   /** Creates a new input from a char array.
