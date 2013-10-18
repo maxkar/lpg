@@ -4,6 +4,83 @@ import sbtunidoc.Plugin._
 
 /* Junit interface docs: https://github.com/szeiger/junit-interface  */
 
+object Tasks {
+  import java.io._
+  import scala.collection.mutable.ArrayBuffer
+
+  lazy val assemblyDir = settingKey[File]("assembly_product_dir")
+  lazy val unpackedDir = settingKey[File]("assembly_unpacked_dir")
+  lazy val itemName = settingKey[String]("assembly_item_name")
+
+  lazy val assemblyPrepare = taskKey[Option[(File, File)]]("assembly_prepare")
+
+
+  private def grepf(x : File, path : String, buf : ArrayBuffer[(File, String)]) : Unit = {
+    val subs = x.listFiles()
+    if (subs == null)
+      buf += ((x, path))
+     else {
+       val nhead = if (path.isEmpty) "" else (path + "/")
+       subs.foreach(sub ⇒  grepf(sub, nhead + sub.getName, buf))
+    }
+  }
+
+
+  private def doAssemblyPrepare(item : String,
+      unpacked : File, deps : Seq[Attributed[File]], owns : Seq[File],
+      runClass : Option[String]) : Option[(File, File)] = {
+
+    if (!runClass.isDefined)
+      return None
+
+
+    val libDir = unpacked / "lib"
+    libDir.mkdirs
+    val appFile = unpacked / (item + ".jar")
+
+    val classDirs = new ArrayBuffer[File]
+    val classpathEntries = new ArrayBuffer[String]
+
+    def pf(x : File) : Unit = {
+      if (x.exists)
+        if (x.isDirectory)
+          classDirs += x
+        else {
+          IO.copyFile(x, libDir/ x.getName)
+          classpathEntries += ("lib/" + x.getName)
+        }
+    }
+
+
+    deps.foreach(x ⇒ pf(x.data))
+    owns.foreach(pf)
+
+    val fb = new ArrayBuffer[(File, String)]
+
+    val mf = new java.util.jar.Manifest
+    if (!classpathEntries.isEmpty)
+      mf.getMainAttributes().putValue("Class-Path", classpathEntries.mkString(" "))
+    mf.getMainAttributes().putValue("Main-Class", runClass.get)
+
+    classDirs.foreach(x ⇒ grepf(x, "", fb))
+    IO.jar(fb, appFile, mf)
+
+    Some((appFile, libDir))
+  }
+
+
+
+  lazy val fullAssembly = Seq(
+    assemblyDir := target.value / "assembly",
+    itemName := baseDirectory.value.getName,
+    assemblyPrepare <<=
+      (itemName, assemblyDir,
+        dependencyClasspath.in(Compile),
+        products.in(Compile),
+        mainClass.in(Compile)) map doAssemblyPrepare
+    )
+}
+
 object MySettings {
   val buildSettings = Defaults.defaultSettings ++ Seq(
     scalaSource in Compile := baseDirectory.value / "src",
@@ -12,7 +89,7 @@ object MySettings {
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-a", "-s"),
     scalacOptions += "-feature",
     scalacOptions in (Compile, doc) ++= Opts.doc.title("Language playground")
-  )
+  ) ++ Tasks.fullAssembly
 }
 
 object CustomBuild extends Build {
@@ -24,11 +101,14 @@ object CustomBuild extends Build {
       dependsOn(deps : _*)
   }
 
+
   lazy val front = prj("frontend/default")
+  lazy val jssample = prj("apps/jssample", front)
 
   lazy val root = Project("root", file("."),
     settings = buildSettings ++ unidocSettings
   ).aggregate(
-    front
+    front,
+    jssample
   )
 }
