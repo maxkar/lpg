@@ -13,6 +13,7 @@ object Tasks {
   lazy val itemName = settingKey[String]("assembly_item_name")
 
   lazy val assemblyPrepare = taskKey[Option[(File, File)]]("assembly_prepare")
+  lazy val internalName = settingKey[String]("internal_name")
 
 
   private def grepf(x : File, path : String, buf : ArrayBuffer[(File, String)]) : Unit = {
@@ -81,15 +82,24 @@ object Tasks {
     )
 }
 
+
+
 object MySettings {
+  val trashDir = settingKey[File]("Directory for trash")
+
   val buildSettings = Defaults.defaultSettings ++ Seq(
     scalaSource in Compile := baseDirectory.value / "src",
     scalaSource in Test := baseDirectory.value / "test",
-    libraryDependencies += "com.novocode" % "junit-interface" % "0.10" % "test",
+    libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.2" % "test",
+    libraryDependencies += "junit" % "junit" % "4.10" % "test",
+//libraryDependencies += "com.novocode" % "junit-interface" % "0.10" % "test",
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-a", "-s"),
     scalacOptions += "-feature",
     scalacOptions in (Compile, doc) ++= Opts.doc.title("Language playground")
-  ) ++ Tasks.fullAssembly
+  ) ++ Tasks.fullAssembly ++ Seq(
+    trashDir := new File(".target").getAbsoluteFile(),
+    target := trashDir.value / Tasks.internalName.value
+  )
 }
 
 object CustomBuild extends Build {
@@ -97,7 +107,7 @@ object CustomBuild extends Build {
 
   private def prj(path : String, deps : ClasspathDep[ProjectReference]*) : Project = {
     val pname = path.replace('/', '_')
-    Project(pname, file(path), settings = buildSettings).
+    Project(pname, file(path), settings = buildSettings ++ Seq(Tasks.internalName := path)).
       dependsOn(deps : _*)
   }
 
@@ -106,7 +116,7 @@ object CustomBuild extends Build {
   lazy val jssample = prj("apps/jssample", front)
 
   lazy val root = Project("root", file("."),
-    settings = buildSettings ++ unidocSettings
+    settings = buildSettings ++ unidocSettings ++ Seq(Tasks.internalName := "root")
   ).aggregate(
     front,
     jssample

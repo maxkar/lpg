@@ -1,5 +1,8 @@
 package ru.maxkar.lispy.front.stage0.parser
 
+import org.scalatest.junit.AssertionsForJUnit
+import org.scalatest.junit.JUnitSuite
+
 import ru.maxkar.lispy.front._
 import ru.maxkar.lispy.front.Attributes._
 import ru.maxkar.lispy.front.stage0._
@@ -8,7 +11,7 @@ import ru.maxkar.lispy.front.parser._
 import org.junit._
 import org.junit.Assert._
 
-final class TestAttsParser {
+final class TestAttsParser extends JUnitSuite {
   import scala.language.implicitConversions
 
   private val a1 = new Attribute[Int]("a1")

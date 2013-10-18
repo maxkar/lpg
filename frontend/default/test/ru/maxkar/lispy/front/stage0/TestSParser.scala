@@ -10,7 +10,10 @@ import org.junit.Assert._
 
 import java.math._
 
-final class TestSParser {
+import org.scalatest.junit.AssertionsForJUnit
+import org.scalatest.junit.JUnitSuite
+
+final class TestSParser extends JUnitSuite {
   import scala.language.implicitConversions
 
 
