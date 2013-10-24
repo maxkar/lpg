@@ -9,5 +9,5 @@ import ru.maxkar.lispy._
 final case class Item(
     source : File,
     path : Seq[String],
-    body : SList[BaseItem])
+    body : SExpression[BaseItem])
 

@@ -114,13 +114,17 @@ object CustomBuild extends Build {
 
   lazy val hunk = prj("lib/hunk")
   lazy val lispy_base = prj("frontend/lispy/base")
-  lazy val jssample = prj("apps/jssample", lispy_base, hunk)
+  lazy val lispy_scoping = prj("frontend/lispy/scoping",
+    lispy_base)
+  lazy val jssample = prj("apps/jssample",
+    lispy_base, hunk, lispy_scoping)
 
   lazy val root = Project("root", file("."),
     settings = buildSettings ++ unidocSettings ++ Seq(Tasks.internalName := "root")
   ).aggregate(
     hunk,
     lispy_base,
+    lispy_scoping,
     jssample
   )
 }
