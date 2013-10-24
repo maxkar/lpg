@@ -48,7 +48,7 @@ final object SParser {
         val items = readSList(attrParser, input)
         val end = input.closingAttributes
         if (input.peek != ')')
-          throw new UnclosedSExpression(start, end)
+          throw new UnclosedSExpression(start, input.openingAttributes)
         input.dropN(1)
         SList(items, headAtts ++ end ++ attrParser(input))
       case '-' if input.peekAt(1) > 0 && Character.isDigit(input.peekAt(1)) ⇒
@@ -121,7 +121,7 @@ final object SParser {
           rb += '\n'
           input.dropWhites
           if (input.peek != '"')
-            throw new MailformedString(start, input.openingAttributes)
+            throw new BadString(start, input.openingAttributes)
           input.dropN(1)
         case '"' ⇒
           input.dropN(1)
@@ -129,7 +129,7 @@ final object SParser {
         case '\\' ⇒
           rb += readEsc(input)
         case _ ⇒
-          throw new MailformedString(start, input.openingAttributes)
+          throw new BadString(start, input.openingAttributes)
       }
     }
 

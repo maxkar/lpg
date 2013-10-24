@@ -40,7 +40,12 @@ final object Processor {
   /** Parses a file content. */
   private def parseContent(file : File)(content : Array[Char]) : Hunk[Res, Unit] = calc {
     val input = Input.fromCharArray(content)
-    SParser.parseSFile(parseAttr)(input)
+    try {
+      SParser.parseSFile(parseAttr)(input)
+    } catch {
+      case e : SFormatException ⇒
+        throw new SFormatFailure(file, e)
+    }
   }
 
 
