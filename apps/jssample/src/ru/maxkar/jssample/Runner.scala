@@ -1,6 +1,6 @@
 package ru.maxkar.jssample
 
-import ru.maxkar.lispy.front.Attribute
+import ru.maxkar.lispy.Attribute
 
 import ru.maxkar.hunk.Hunk._
 

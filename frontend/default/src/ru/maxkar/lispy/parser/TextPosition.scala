@@ -1,4 +1,4 @@
-package ru.maxkar.lispy.front.parser
+package ru.maxkar.lispy.parser
 
 /** Position in a text. */
 final case class TextPosition(

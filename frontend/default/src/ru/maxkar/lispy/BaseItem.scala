@@ -1,4 +1,4 @@
-package ru.maxkar.lispy.front.stage0
+package ru.maxkar.lispy
 
 import java.math._
 

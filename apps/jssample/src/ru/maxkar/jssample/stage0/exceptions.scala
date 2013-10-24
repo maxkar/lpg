@@ -2,7 +2,7 @@ package ru.maxkar.jssample.stage0
 
 import java.io._
 
-import ru.maxkar.lispy.front.stage0._
+import ru.maxkar.lispy.parser._
 
 /** Stage-0 failure. */
 abstract sealed class Failure(msg : String, cause : Throwable) extends Exception(msg, cause) {

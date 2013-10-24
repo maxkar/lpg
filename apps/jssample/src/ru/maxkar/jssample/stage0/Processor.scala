@@ -1,5 +1,8 @@
 package ru.maxkar.jssample.stage0
 
+import ru.maxkar.jssample.IO
+import ru.maxkar.jssample.Files
+
 import ru.maxkar.hunk._
 import ru.maxkar.hunk.Hunk._
 
@@ -7,11 +10,8 @@ import java.io._
 
 import scala.collection.mutable.ArrayBuffer
 
-import ru.maxkar.lispy.front.build._
-
-import ru.maxkar.lispy.front._
-import ru.maxkar.lispy.front.parser._
-import ru.maxkar.lispy.front.stage0._
+import ru.maxkar.lispy._
+import ru.maxkar.lispy.parser._
 
 /** Processeor for the stage-0 items. */
 final object Processor {

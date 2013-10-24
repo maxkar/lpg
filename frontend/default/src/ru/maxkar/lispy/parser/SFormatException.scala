@@ -1,6 +1,6 @@
-package ru.maxkar.lispy.front.stage0
+package ru.maxkar.lispy.parser
 
-import ru.maxkar.lispy.front.Attributes
+import ru.maxkar.lispy.Attributes
 
 
 /** Maiformed s-expression exception. */

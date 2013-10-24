@@ -2,8 +2,7 @@ package ru.maxkar.jssample.stage0
 
 import java.io.File
 
-import ru.maxkar.lispy.front._
-import ru.maxkar.lispy.front.stage0._
+import ru.maxkar.lispy._
 
 
 /** Stage-0 output item. */

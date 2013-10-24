@@ -1,7 +1,7 @@
-package ru.maxkar.lispy.front.parser
+package ru.maxkar.lispy.parser
 
-import ru.maxkar.lispy.front.Attribute
-import ru.maxkar.lispy.front.Attributes
+import ru.maxkar.lispy.Attribute
+import ru.maxkar.lispy.Attributes
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -42,14 +42,8 @@ trait Input extends Lookahead {
   def charsWhile(pred : Char ⇒  Boolean) : String
 
 
-  /** Attributes for element opening. */
-  def openingAttributes() : Attributes
-
-
-  /** Closing/ending attributes. Notes the same position
-   * as openingAttributes but with other attributes' values
-   */
-  def closingAttributes() : Attributes
+  /** Location attribute. */
+  def location() : Attributes
 }
 
 
@@ -57,30 +51,9 @@ trait Input extends Lookahead {
 /** Input handlers, factories, etc... */
 object Input {
 
-
-  /** Starting offset in characters. */
-  val startCharOffset : Attribute[Int] =
-    new Attribute[Int]("Starting char offset")
-
-
-  /** Staring text position. */
-  val startTextPosition : Attribute[TextPosition] =
-    new Attribute[TextPosition]("Starting location")
-
-
-  /** Starting offset in characters. */
-  val endCharOffset : Attribute[Int] =
-    new Attribute[Int]("Ending char offset")
-
-
-  /** Ending text position. */
-  val endTextPosition : Attribute[TextPosition] =
-    new Attribute[TextPosition]("Ending location")
-
-
-  /** Source file. */
-  val sourceFile : Attribute[java.io.File] =
-    new Attribute[java.io.File]("Source file")
+  /** Location attribute. */
+  val textPosition : Attribute[TextPosition] =
+    new Attribute[TextPosition]("Text position")
 
 
   /** Layouts a character array. */

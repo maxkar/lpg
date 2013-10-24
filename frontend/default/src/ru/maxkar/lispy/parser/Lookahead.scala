@@ -1,4 +1,4 @@
-package ru.maxkar.lispy.front.parser
+package ru.maxkar.lispy.parser
 
 /**
  * Trait which allows to "look ahead" in input. Does not

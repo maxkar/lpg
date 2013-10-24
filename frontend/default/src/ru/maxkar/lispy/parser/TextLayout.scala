@@ -1,4 +1,4 @@
-package ru.maxkar.lispy.front.parser
+package ru.maxkar.lispy.parser
 
 /** Text layout information.
  * Holds mapping from character offsets to it's lines.

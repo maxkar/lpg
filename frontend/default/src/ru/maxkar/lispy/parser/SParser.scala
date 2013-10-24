@@ -1,7 +1,7 @@
-package ru.maxkar.lispy.front.stage0
+package ru.maxkar.lispy.parser
 
-import ru.maxkar.lispy.front._
-import ru.maxkar.lispy.front.parser._
+import ru.maxkar.lispy._
+import ru.maxkar.lispy.parser._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -38,7 +38,7 @@ final object SParser {
       : SExpression[BaseItem] = {
     input.dropWhites
 
-    val start = input.openingAttributes
+    val start = input.location
     input.peek match {
       case x if x < 0 ⇒
         throw new BadSExpression(start)
@@ -46,25 +46,25 @@ final object SParser {
         input.dropN(1)
         val headAtts = start ++ attrParser(input)
         val items = readSList(attrParser, input)
-        val end = input.closingAttributes
+        val end = input.location
         if (input.peek != ')')
-          throw new UnclosedSExpression(start, input.openingAttributes)
+          throw new UnclosedSExpression(start, input.location)
         input.dropN(1)
         SList(items, headAtts ++ end ++ attrParser(input))
       case '-' if input.peekAt(1) > 0 && Character.isDigit(input.peekAt(1)) ⇒
         val item = readNum(input)
-        SLeaf(item, start ++ attrParser(input) ++ input.closingAttributes)
+        SLeaf(item, start ++ attrParser(input) ++ input.location)
       case x if Character.isDigit(x) ⇒
         val item = readNum(input)
-        SLeaf(item, start ++ attrParser(input) ++ input.closingAttributes)
+        SLeaf(item, start ++ attrParser(input) ++ input.location)
       case '"' ⇒
         input.dropN(1)
         val item = readString(start, input)
-        SLeaf(item, start ++ attrParser(input) ++ input.closingAttributes)
+        SLeaf(item, start ++ attrParser(input) ++ input.location)
       case x if isValidIdChar(x.asInstanceOf[Char]) ⇒
         val txt = input.charsWhile(isValidIdChar)
         SLeaf(BaseId(txt),
-            start ++ attrParser(input) ++ input.closingAttributes)
+            start ++ attrParser(input) ++ input.location)
       case _ =>
         throw new BadSExpression(start)
     }
@@ -86,7 +86,7 @@ final object SParser {
     val start = attrParser(input)
     val items = readSList(attrParser, input)
     if (!input.atEof)
-      throw new TrailingData(input.openingAttributes)
+      throw new TrailingData(input.location)
     SList(items, start)
   }
 
@@ -102,7 +102,7 @@ final object SParser {
       case 't' ⇒ '\t'
       case x ⇒
         if (x < 0)
-          throw new BadEscapeChar(input.openingAttributes)
+          throw new BadEscapeChar(input.location)
         else
           x.asInstanceOf[Char]
     }
@@ -121,7 +121,7 @@ final object SParser {
           rb += '\n'
           input.dropWhites
           if (input.peek != '"')
-            throw new BadString(start, input.openingAttributes)
+            throw new BadString(start, input.location)
           input.dropN(1)
         case '"' ⇒
           input.dropN(1)
@@ -129,7 +129,7 @@ final object SParser {
         case '\\' ⇒
           rb += readEsc(input)
         case _ ⇒
-          throw new BadString(start, input.openingAttributes)
+          throw new BadString(start, input.location)
       }
     }
 
@@ -173,7 +173,7 @@ final object SParser {
 
     val exps = readDigits(input)
     if (exps.isEmpty)
-      throw new BadExponent(input.openingAttributes)
+      throw new BadExponent(input.location)
 
     new BaseFloating(fpn, new BigInteger(sgn + exps))
   }

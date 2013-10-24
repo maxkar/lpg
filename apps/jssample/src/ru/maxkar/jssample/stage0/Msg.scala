@@ -3,9 +3,8 @@ package ru.maxkar.jssample.stage0
 
 import java.io._
 
-import ru.maxkar.lispy.front.stage0._
-import ru.maxkar.lispy.front.parser._
-import ru.maxkar.lispy.front._
+import ru.maxkar.lispy.parser._
+import ru.maxkar.lispy._
 
 
 /** Stage-0 messages. */
@@ -34,7 +33,7 @@ final object Msg {
 
   /** Formats a source location. */
   private def formatLocation(atts : Attributes) : String = {
-    val aset = atts.allValues(Input.startTextPosition)
+    val aset = atts.allValues(Input.textPosition)
     if (aset.size != 1)
       return "<unknown/unsupported location>"
     val x = aset.head
@@ -54,7 +53,7 @@ final object Msg {
     stream.print(exn.file)
     exn match {
       case ReadFailure(f, e) ⇒
-        stream.println("ERROR: Failed to read file : " + exn)
+        stream.println(": Failed to read file : " + exn)
         e.printStackTrace(stream)
       case SFormatFailure(f, e) ⇒
         stream.println(formatSException(e))

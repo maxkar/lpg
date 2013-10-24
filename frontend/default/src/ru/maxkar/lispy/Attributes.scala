@@ -1,4 +1,4 @@
-package ru.maxkar.lispy.front
+package ru.maxkar.lispy
 
 
 /** Set of attributes for a given entity. */

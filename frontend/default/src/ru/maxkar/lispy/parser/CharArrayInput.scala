@@ -1,8 +1,8 @@
-package ru.maxkar.lispy.front.parser
+package ru.maxkar.lispy.parser
 
-import ru.maxkar.lispy.front.Attribute
-import ru.maxkar.lispy.front.Attributes
-import ru.maxkar.lispy.front.Attributes._
+import ru.maxkar.lispy.Attribute
+import ru.maxkar.lispy.Attributes
+import ru.maxkar.lispy.Attributes._
 
 /**
  * Character array input.
@@ -73,14 +73,6 @@ private[parser] class CharArrayInput(
   }
 
 
-  override def openingAttributes() : Attributes = {
-    singleton(Input.startCharOffset, offset) +
-      (Input.startTextPosition, layout(offset))
-  }
-
-
-  override def closingAttributes() : Attributes = {
-    singleton(Input.endCharOffset, offset) +
-      (Input.endTextPosition, layout(offset))
-  }
+  override def location() : Attributes =
+    singleton(Input.textPosition, layout(offset))
 }

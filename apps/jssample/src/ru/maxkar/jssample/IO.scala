@@ -1,6 +1,7 @@
-package ru.maxkar.lispy.front.build
+package ru.maxkar.jssample
 
 import java.io._
+
 
 /** Input/output utilitiles. */
 object IO {

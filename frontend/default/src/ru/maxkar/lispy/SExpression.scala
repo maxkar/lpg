@@ -1,4 +1,4 @@
-package ru.maxkar.lispy.front
+package ru.maxkar.lispy
 
 /** S-expression type. Each type may be either a leaf
  * of specific type or list of children expressions.

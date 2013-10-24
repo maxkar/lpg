@@ -1,4 +1,4 @@
-package ru.maxkar.lispy.front
+package ru.maxkar.lispy
 
 
 /**

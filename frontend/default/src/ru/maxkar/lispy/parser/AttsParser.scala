@@ -1,7 +1,7 @@
-package ru.maxkar.lispy.front.stage0
+package ru.maxkar.lispy.parser
 
-import ru.maxkar.lispy.front._
-import ru.maxkar.lispy.front.parser._
+import ru.maxkar.lispy._
+import ru.maxkar.lispy.parser._
 
 
 /** Attributes parser implementation. */
@@ -16,7 +16,7 @@ private class AttsParser(
     while (true) {
       input.dropWhites
 
-      val sloc = input.openingAttributes
+      val sloc = input.location
       if (input.peek != '{')
         return res
 
@@ -36,7 +36,7 @@ private class AttsParser(
           res = res ++ x(sloc, input)
           input.dropWhites
           if (input.peek != '}')
-            throw new UnclosedAttribute(sloc, input.openingAttributes)
+            throw new UnclosedAttribute(sloc, input.location)
           input.dropN(1)
       }
     }
