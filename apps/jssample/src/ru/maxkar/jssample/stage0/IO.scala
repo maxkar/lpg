@@ -1,4 +1,4 @@
-package ru.maxkar.jssample
+package ru.maxkar.jssample.stage0
 
 import java.io._
 

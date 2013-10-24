@@ -2,9 +2,6 @@ package ru.maxkar.jssample.stage0
 
 import ru.maxkar.jssample._
 
-import ru.maxkar.jssample.IO
-import ru.maxkar.jssample.Files
-
 import ru.maxkar.hunk._
 import ru.maxkar.hunk.Hunk._
 
