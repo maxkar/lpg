@@ -6,18 +6,22 @@ import ru.maxkar.jssample.Files
 import ru.maxkar.hunk._
 import ru.maxkar.hunk.Hunk._
 
-import java.io._
-
-import scala.collection.mutable.ArrayBuffer
-
 import ru.maxkar.lispy._
 import ru.maxkar.lispy.parser._
 
+import java.io._
+
+import java.util.concurrent.Executor
+
+import scala.collection.mutable.ArrayBuffer
+
 /** Processeor for the stage-0 items. */
-final object Processor {
+final class Processor(implicit executor : Executor) {
+
 
   /** Result type. */
-  private type Res = SList[BaseItem]
+  private type Res = Item
+
 
 
   /** Inputs a file content. */
@@ -31,14 +35,16 @@ final object Processor {
   }
 
 
+
   /** Parses attributes. */
   private def parseAttr(x : Input) : Attributes = {
     Attributes.empty
   }
 
 
+
   /** Parses a file content. */
-  private def parseContent(file : File)(content : Array[Char]) : Hunk[Res, Unit] = calc {
+  private def parseContent(file : File)(content : Array[Char]) : Hunk[SList[BaseItem], Unit] = exec {
     val input = Input.fromCharArray(content)
     try {
       SParser.parseSFile(parseAttr)(input)
@@ -49,11 +55,14 @@ final object Processor {
   }
 
 
+
   /** Processes one file. */
   private def processFile(input : File, path : Seq[String]) : Hunk[Res, Unit] = {
     val content = getContent(input)
-    parseContent(input) _ <**> content
+    val body = parseContent(input) _ <**> content
+    Item.curried(input)(path) <*> body
   }
+
 
 
   /** Processes a list of inputs into list of stage-0 items. */
@@ -61,8 +70,13 @@ final object Processor {
     val res = new ArrayBuffer[Hunk[Res, Unit]]
 
     def acceptFile(f : File, path : Seq[String]) : Unit = {
+      if (path.isEmpty)
+        return
+      val left = path.last
+      val modname = left.substring(0, left.length - 4)
+      val rpath = path.dropRight(1) :+ modname
       if (f.getName.endsWith(".lpg"))
-        res += processFile(f, path)
+        res += processFile(f, rpath)
     }
 
     inputs.foreach(i ⇒
@@ -70,6 +84,7 @@ final object Processor {
 
     res.toSeq
   }
+
 
 
   /** Directory acceptor. */

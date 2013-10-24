@@ -192,7 +192,6 @@ object Hunk {
   /** Applicative operation. */
   implicit class ApplicativeHunk[R1, R2, T](
         val x : Hunk[R1 ⇒ R2, T]) extends AnyVal {
-    @inline
     def <*>[T2 >: T](other : Hunk[R1, T2]) : Hunk[R2, T2] = {
       val res = new DeferredHunk[R2, T2]
 
@@ -218,6 +217,16 @@ object Hunk {
 
       res
     }
+  }
+
+
+
+  /** Applicative function operation. */
+  implicit class ApplicativeFunction[F1, F2](
+        val x : F1 ⇒  F2) extends AnyVal {
+    @inline
+    def <*>[T](other : Hunk[F1, T]) : Hunk[F2, T] =
+      other.fmap(x)
   }
 
 

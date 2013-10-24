@@ -1,7 +1,8 @@
 package ru.maxkar.jssample
 
-import ru.maxkar.lispy.Attribute
+import java.util.concurrent._
 
+import ru.maxkar.lispy.Attribute
 import ru.maxkar.hunk.Hunk._
 
 /** Application runner class. */
@@ -11,7 +12,11 @@ final object Runner {
     if (args.length < 2)
       printUsageAndExit();
 
-    val items = stage0.Processor.process(args.tail)
+    implicit val executor =
+      Executors.newFixedThreadPool(
+        Runtime.getRuntime().availableProcessors)
+
+    val items = (new stage0.Processor).process(args.tail)
 
     val (s0fails, s0succs) = awaitSplit(items)
 
@@ -20,6 +25,8 @@ final object Runner {
 
     System.out.println("Results:")
     s0succs.foreach(x ⇒ System.out.println(x._1))
+
+    executor.shutdownNow
   }
 
   /** Prints fails and exits. Exists only when at least on
