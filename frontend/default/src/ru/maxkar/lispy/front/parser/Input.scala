@@ -63,9 +63,19 @@ object Input {
     new Attribute[Int]("Starting char offset")
 
 
+  /** Staring text position. */
+  val startTextPosition : Attribute[TextPosition] =
+    new Attribute[TextPosition]("Starting location")
+
+
   /** Starting offset in characters. */
   val endCharOffset : Attribute[Int] =
     new Attribute[Int]("Ending char offset")
+
+
+  /** Ending text position. */
+  val endTextPosition : Attribute[TextPosition] =
+    new Attribute[TextPosition]("Ending location")
 
 
   /** Source file. */
@@ -100,5 +110,5 @@ object Input {
    * @return stream which uses an array as the input base.
    */
   def fromCharArray(stream : Array[Char]) : Input =
-    new CharArrayInput(stream, 0)
+    new CharArrayInput(stream, layoutOfArray(stream), 0)
 }

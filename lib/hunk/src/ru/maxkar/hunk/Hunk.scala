@@ -165,6 +165,30 @@ object Hunk {
   }
 
 
+  /** Awaits all hunks and returns it's results. */
+  def awaitAll[R, T](hunks : Seq[Hunk[R, T]]) : Seq[HunkResult[R, T]] = {
+    hunks.map(x ⇒  x.awaitResult)
+  }
+
+
+  /** Awaits all hunks and splits results into "successes" and "failures".
+   */
+  def awaitSplit[R, T](hunks : Seq[Hunk[R, T]]) :
+      (Seq[(Throwable, Iterable[T])], Seq[(R, Iterable[T])]) = {
+
+    val succs = new ArrayBuffer[(R, Iterable[T])](hunks.length)
+    val fails = new ArrayBuffer[(Throwable, Iterable[T])]
+
+    awaitAll(hunks).foreach(x ⇒ x match {
+        case HunkException(_, _, exn) ⇒
+          fails += ((exn, x.allTraces))
+        case HunkSuccess(_, _, v) ⇒
+          succs += ((v, x.allTraces))
+      })
+    (fails, succs)
+  }
+
+
   /** Applicative operation. */
   implicit class ApplicativeHunk[R1, R2, T](
         val x : Hunk[R1 ⇒ R2, T]) extends AnyVal {

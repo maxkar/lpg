@@ -10,7 +10,7 @@ import ru.maxkar.lispy.front.Attributes._
  * character offser attribute.
  */
 private[parser] class CharArrayInput(
-      stream : Array[Char], var offset : Int)
+      stream : Array[Char], layout : TextLayout, var offset : Int)
     extends Input {
 
 
@@ -74,11 +74,13 @@ private[parser] class CharArrayInput(
 
 
   override def openingAttributes() : Attributes = {
-    singleton(Input.startCharOffset, offset)
+    singleton(Input.startCharOffset, offset) +
+      (Input.startTextPosition, layout(offset))
   }
 
 
   override def closingAttributes() : Attributes = {
-    singleton(Input.endCharOffset, offset)
+    singleton(Input.endCharOffset, offset) +
+      (Input.endTextPosition, layout(offset))
   }
 }

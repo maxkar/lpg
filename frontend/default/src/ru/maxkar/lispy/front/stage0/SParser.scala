@@ -19,8 +19,10 @@ final object SParser {
     input.dropWhites
 
     val res = new ArrayBuffer[SExpression[BaseItem]]
-    while (input.peek >= 0 && input.peek != ')')
+    while (input.peek >= 0 && input.peek != ')') {
       res += parseSExpression(attrParser)(input)
+      input.dropWhites
+    }
 
     res.toSeq
   }

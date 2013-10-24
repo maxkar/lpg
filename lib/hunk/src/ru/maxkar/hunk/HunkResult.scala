@@ -27,6 +27,10 @@ abstract sealed class HunkResult[+R, +T] protected(
 
   /** All exceptions which occured during evalutation of this hunk. */
   val allExceptions : Iterable[Throwable] = exceptionsNet.res
+
+
+  /** All traces. */
+  val allTraces : Iterable[T] = traceNet.res
 }
 
 
