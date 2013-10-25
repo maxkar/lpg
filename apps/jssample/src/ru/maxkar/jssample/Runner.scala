@@ -6,7 +6,6 @@ import ru.maxkar.lispy.Attribute
 import ru.maxkar.hunk.Hunk._
 
 
-
 /** Application runner class. */
 final object Runner {
 
@@ -35,6 +34,13 @@ final object Runner {
 
     val s2result = new stage2.Processor().process(s1succs)
     printFails2AndExit(s2result.anamnesis)
+
+    val p3 = new stage3.Processor(s2result.mods)
+    val p3result = s1succs.map(p3.process)
+    val (s3fails, s3succ) = awaitSplit(p3result)
+    printFailsAndExit(s3fails)
+
+    System.out.println(s3succ)
 
     executor.shutdownNow
   }
