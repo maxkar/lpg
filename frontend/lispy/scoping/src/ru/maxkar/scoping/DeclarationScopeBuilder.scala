@@ -16,28 +16,57 @@ private[scoping] final class DeclarationScopeBuilder(
 
 
   /** Adds an item if it is a simple name. */
-  private def addSimpleName(expr : SExpression[BaseItem]) : Unit =
-    expr match {
-      case IdLeaf(i, l) ⇒ offerLocal(i, l)
-      case _ ⇒  ()
-    }
-
+  private def addSimpleName(expr : SExpression[BaseItem]) : Unit = {
+    val g1 = expr.unLeaf
+    if (g1 == null)
+      return
+    val id = g1.unId
+    if (id != null)
+      offerLocal(id, expr.atts)
+  }
 
   /** Adds a name if it is in a "variable" form. */
-  private def addVarName(expr : SExpression[BaseItem]) : Unit =
-    expr match {
-      case IdLeaf(i, l) ⇒ offerLocal(i, l)
-      case IdList(n, a, _) ⇒ offerLocal(n, a)
-      case _ ⇒  ()
+  private def addVarName(expr : SExpression[BaseItem]) : Unit = {
+    val g1 = expr.unLeaf
+    if (g1 != null) {
+      val id = g1.unId
+      if (id != null)
+        offerLocal(id, expr.atts)
+      return
     }
 
+    val g2 = expr.unHeadLeaf
+    if (g2 != null) {
+      val id = g2.unId
+      if (id != null)
+        offerLocal(id, expr.head.atts)
+      return
+    }
+  }
 
   /** Processes one declaration. */
   def processDeclaration(item : SExpression[BaseItem]) : Unit = {
-    item match {
-      case IdList("const", _, tl) ⇒ tl.foreach(addSimpleName)
-      case IdList("var", _, tl) ⇒ tl.foreach(addVarName)
-      case IdList("def", _, Seq(IdLeaf(n, a), _*)) ⇒ offerLocal(n, a)
+    val g1 = item.unHeadLeaf
+    if (g1 == null)
+      return
+
+    val id = g1.unId
+    if (id == null)
+      return
+
+    id match {
+      case "const" ⇒ item.tail.foreach(addSimpleName)
+      case "var" ⇒ item.tail.foreach(addVarName)
+      case "def" ⇒
+        val dt = item.tail
+        if (dt.isEmpty)
+          return
+        val hid = dt.head.unHeadLeaf
+        if (hid == null)
+          return
+        val nid = hid.unId
+        if (nid != null)
+          offerLocal(nid, dt.head.atts)
       case _ ⇒ ()
     }
   }

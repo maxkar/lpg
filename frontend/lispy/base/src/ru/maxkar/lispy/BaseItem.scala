@@ -8,7 +8,11 @@ import java.math._
  * with s-expression glue to create solid program
  * constructs.
  */
-abstract sealed class BaseItem
+abstract sealed class BaseItem {
+  /** Tries to get an identifier. Returns null if this value
+   * is not an identifier. */
+  def unId() : String = null
+}
 
 /**
  * Simple identifier. These identifiers may include
@@ -19,7 +23,9 @@ abstract sealed class BaseItem
  *   identifier. However, "--1" is valid identifier.
  * <p>Example identifiers: abc, xyz, a-b-c, op+, ++, --.
  */
-final case class BaseId(name : String) extends BaseItem
+final case class BaseId(name : String) extends BaseItem {
+  override def unId() : String = name
+}
 
 /**
  * String literal. Like a common string in most languages.
