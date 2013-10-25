@@ -1,5 +1,7 @@
 package ru.maxkar.jssample.stage1
 
+import ru.maxkar.alias.collection._
+
 import ru.maxkar.lispy._
 
 import java.io._
@@ -14,6 +16,7 @@ final class Result(
       val source : File,
       val module : Seq[String],
       val entity : SExpression[BaseItem],
+      val decls : JSet[String],
       val anamnesis : Anamnesis1){
 
   override def toString() : String =

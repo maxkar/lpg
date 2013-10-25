@@ -33,7 +33,21 @@ final object Runner {
     s1succs.foreach(x ⇒ stage1.Msg.printErrors(
       System.err, x.source, x.anamnesis))
 
+    val s2result = new stage2.Processor().process(s1succs)
+    printFails2AndExit(s2result.anamnesis)
+
     executor.shutdownNow
+  }
+
+
+  def printFails2AndExit(x : stage2.Anamnesis2) : Unit = {
+    if (x.moddecls.isEmpty)
+      return
+    x.moddecls.foreach(md ⇒ {
+        System.err.println("ERROR : " + md.second + " : Module " +
+          md.name.mkString(".") + " is already declared in " + md.first)
+    })
+    System.exit(2)
   }
 
 

@@ -24,7 +24,7 @@ final class Processor(implicit executor : Executor) {
 
 
   /** Inputs a file content. */
-  private def getContent(input : File) : Hunk[Array[Char]] = calc {
+  private def getContent(input : File) : Hunk[Array[Char]] = exec {
     try {
       Files.fileAsCharsEnc(input, "UTF-8")
     } catch {
