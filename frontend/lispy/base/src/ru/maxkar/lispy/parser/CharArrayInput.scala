@@ -10,8 +10,13 @@ import ru.maxkar.lispy.Attributes._
  * character offser attribute.
  */
 private[parser] class CharArrayInput(
-      stream : Array[Char], layout : TextLayout, var offset : Int)
+      stream : Array[Char], var offset : Int)
     extends Input {
+
+  /** Current line. */
+  private var line = 1
+  /** Current column. */
+  private var col = 1
 
 
   override def atEof() : Boolean =
@@ -22,7 +27,7 @@ private[parser] class CharArrayInput(
     val start = offset
     while (!atEof) {
       if (pred(stream(offset)))
-        offset += 1
+        skip1
       else
         return start < offset
     }
@@ -40,17 +45,19 @@ private[parser] class CharArrayInput(
 
 
   override def dropN(count : Int) : Unit = {
-    if (count <= 0)
-      return
-    val dc = Math.min(count, stream.length - offset)
-    offset += dc
+    val limit = stream.length
+    var c = count
+    while (c > 0 && offset < limit) {
+      skip1
+      c -= 1
+    }
   }
 
 
   override def charsWhile(pred : Char ⇒ Boolean) : String = {
     val start = offset
     while (!atEof && pred(stream(offset)))
-      offset += 1
+      skip1
     new String(stream, start, offset - start)
   }
 
@@ -74,5 +81,24 @@ private[parser] class CharArrayInput(
 
 
   override def location() : Attributes =
-    singleton(Input.textPosition, layout(offset))
+    singleton(Input.textPosition, new TextPosition(line, col))
+
+
+  /** Skips one item. */
+  private def skip1()  : Unit = {
+    val poffset = offset
+    offset += 1
+    stream(poffset) match {
+      case '\n' ⇒
+        line += 1
+        col = 1
+      case '\r' ⇒
+        if (offset < stream.length && stream(offset) == '\n')
+          offset += 1
+        line += 1
+        col = 1
+      case _ ⇒
+        col += 1
+    }
+  }
 }

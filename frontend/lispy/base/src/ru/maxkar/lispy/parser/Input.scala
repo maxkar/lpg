@@ -56,37 +56,11 @@ object Input {
     new Attribute[TextPosition]("Text position")
 
 
-  /** Layouts a character array. */
-  def layoutOfArray(items : Array[Char]) : TextLayout = {
-    val buffer = new ArrayBuffer[Int]
-
-    var ptr = 0
-    while (ptr < items.length) {
-      items(ptr) match {
-        case '\n' ⇒ buffer += ptr
-        case '\r' ⇒
-          if (ptr + 1 == items.length || items(ptr + 1) != '\n')
-            buffer += ptr
-        case _ ⇒  ()
-      }
-
-      ptr += 1
-    }
-
-    /*
-    val ra = new Array[Int](buffer.size)
-    buffer.copyToArray(ra, 0, buffer.size)
-    new TextLayout(ra)
-    */
-    new TextLayout(buffer.toArray)
-  }
-
-
   /** Creates a new input from a char array.
    * Returned input provides only CharOffset as a location.
    * @param stream initial input stream.
    * @return stream which uses an array as the input base.
    */
   def fromCharArray(stream : Array[Char]) : Input =
-    new CharArrayInput(stream, layoutOfArray(stream), 0)
+    new CharArrayInput(stream, 0)
 }
