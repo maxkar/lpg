@@ -9,19 +9,8 @@ import ru.maxkar.hunk.Hunk._
 
 /** Application runner class. */
 final object Runner {
-  /** Entry point. */
+
   def main(args : Array[String]) {
-    val x = new java.util.HashMap[String, Int]
-    var cnt = 0
-    while (cnt < 1000) {
-      //x.put("x" + cnt, cnt)
-      main1(args)
-      cnt += 1
-    }
-  }
-
-
-  def main1(args : Array[String]) {
     if (args.length < 2)
       printUsageAndExit();
 
