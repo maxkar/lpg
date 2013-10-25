@@ -9,8 +9,6 @@ import ru.maxkar.alias.collection._
 private[scoping] final class DeclarationScopeBuilder(
     list : ArrayBuffer[DuplicateDeclarationInfo]) {
 
-  import ru.maxkar.lispy.SPattern._
-
   /** Local declarations map. */
   private val locals = new JHashMap[String, Attributes]
 
