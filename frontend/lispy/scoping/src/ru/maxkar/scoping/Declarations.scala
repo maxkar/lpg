@@ -1,5 +1,6 @@
 package ru.maxkar.scoping
 
+import ru.maxkar.alias.collection._
 import ru.maxkar.lispy._
 import scala.collection.mutable.ArrayBuffer
 
@@ -42,8 +43,8 @@ final object Declarations {
 
 
   /** Local declarations attribute. */
-  val declaredLocals : Attribute[Set[String]] =
-    new Attribute[Set[String]]("Declared members' names")
+  val declaredLocals : Attribute[JSet[String]] =
+    new Attribute[JSet[String]]("Declared members' names")
 
 
   /** Finds all internal declarations and creates declaredLocals

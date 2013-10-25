@@ -3,7 +3,7 @@ package ru.maxkar.scoping
 import ru.maxkar.lispy._
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.HashMap
+import ru.maxkar.alias.collection._
 
 /** Builder of declaration scope. */
 private[scoping] final class DeclarationScopeBuilder(
@@ -12,7 +12,7 @@ private[scoping] final class DeclarationScopeBuilder(
   import ru.maxkar.lispy.SPattern._
 
   /** Local declarations map. */
-  private val locals = new HashMap[String, Attributes]
+  private val locals = new JHashMap[String, Attributes]
 
 
   /** Adds an item if it is a simple name. */
@@ -45,13 +45,14 @@ private[scoping] final class DeclarationScopeBuilder(
 
   /** Offers a new item. */
   def offerLocal(key : String, loc : Attributes) : Unit = {
-    locals.get(key) match {
-      case Some(x) ⇒ list += DuplicateDeclarationInfo(key, x, loc)
-      case None ⇒ locals.put(key, loc)
+    val prev = locals.put(key, loc)
+    if (prev != null) {
+      list += DuplicateDeclarationInfo(key, prev, loc)
+      locals.put(key, loc)
     }
   }
 
 
   /** Returns set of found names. */
-  def names() : Set[String] = locals.keys.toSet
+  def names() : JSet[String] = java.util.Collections.unmodifiableSet(locals.keySet)
 }
