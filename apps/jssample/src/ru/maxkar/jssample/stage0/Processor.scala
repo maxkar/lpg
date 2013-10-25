@@ -43,7 +43,7 @@ final class Processor(implicit executor : Executor) {
 
 
   /** Parses a file content. */
-  private def parseContent(file : File)(content : Array[Char]) : Hunk[SList[BaseItem], Trace] = exec {
+  private def parseContent(file : File)(content : Array[Char]) : Hunk[SList[BaseItem], Trace] = calc {
     val input = Input.fromCharArray(content)
     try {
       SParser.parseSFile(parseAttr)(input)

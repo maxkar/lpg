@@ -73,6 +73,11 @@ object Input {
       ptr += 1
     }
 
+    /*
+    val ra = new Array[Int](buffer.size)
+    buffer.copyToArray(ra, 0, buffer.size)
+    new TextLayout(ra)
+    */
     new TextLayout(buffer.toArray)
   }
 

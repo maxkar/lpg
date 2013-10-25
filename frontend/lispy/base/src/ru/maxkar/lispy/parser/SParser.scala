@@ -46,25 +46,23 @@ final object SParser {
         input.dropN(1)
         val headAtts = start ++ attrParser(input)
         val items = readSList(attrParser, input)
-        val end = input.location
         if (input.peek != ')')
           throw new UnclosedSExpression(start, input.location)
         input.dropN(1)
-        SList(items, headAtts ++ end ++ attrParser(input))
+        SList(items, headAtts ++ attrParser(input))
       case '-' if input.peekAt(1) > 0 && Character.isDigit(input.peekAt(1)) ⇒
         val item = readNum(input)
-        SLeaf(item, start ++ attrParser(input) ++ input.location)
+        SLeaf(item, start ++ attrParser(input))
       case x if Character.isDigit(x) ⇒
         val item = readNum(input)
-        SLeaf(item, start ++ attrParser(input) ++ input.location)
+        SLeaf(item, start ++ attrParser(input))
       case '"' ⇒
         input.dropN(1)
         val item = readString(start, input)
-        SLeaf(item, start ++ attrParser(input) ++ input.location)
+        SLeaf(item, start ++ attrParser(input))
       case x if isValidIdChar(x.asInstanceOf[Char]) ⇒
         val txt = input.charsWhile(isValidIdChar)
-        SLeaf(BaseId(txt),
-            start ++ attrParser(input) ++ input.location)
+        SLeaf(BaseId(txt), start ++ attrParser(input))
       case _ =>
         throw new BadSExpression(start)
     }

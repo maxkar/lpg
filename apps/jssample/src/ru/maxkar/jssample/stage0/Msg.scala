@@ -9,6 +9,8 @@ import ru.maxkar.lispy._
 
 /** Stage-0 messages. */
 final object Msg {
+  import ru.maxkar.jssample.MessageFormat._
+
 
   /** Formats an s-exception body message. */
   private def formatSExceptionBody(exn : SFormatException) : String = {
@@ -31,32 +33,15 @@ final object Msg {
   }
 
 
-  /** Formats a source location. */
-  private def formatLocation(atts : Attributes) : String = {
-    val aset = atts.allValues(Input.textPosition)
-    if (aset.size != 1)
-      return "<unknown/unsupported location>"
-    val x = aset.head
-    "(" + x.line + "," + x.column + ")"
-  }
-
-
-  /** Formats an S-expression. */
-  private def formatSException(exn : SFormatException) : String = {
-    formatLocation(exn.location) + " : " + formatSExceptionBody(exn)
-  }
-
-
-
   /** Prints a decoded exception. */
   def printException(stream : PrintStream, exn : Failure) : Unit = {
-    stream.print(exn.file)
     exn match {
       case ReadFailure(f, e) ⇒
+        stream.print(exn.file)
         stream.println(": Failed to read file : " + exn)
         e.printStackTrace(stream)
       case SFormatFailure(f, e) ⇒
-        stream.println(formatSException(e))
+        stream.println(err(f, e.location, formatSExceptionBody(e)))
     }
   }
 }

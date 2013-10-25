@@ -11,6 +11,17 @@ import ru.maxkar.hunk.Hunk._
 final object Runner {
   /** Entry point. */
   def main(args : Array[String]) {
+    val x = new java.util.HashMap[String, Int]
+    var cnt = 0
+    while (cnt < 1000) {
+      //x.put("x" + cnt, cnt)
+      main1(args)
+      cnt += 1
+    }
+  }
+
+
+  def main1(args : Array[String]) {
     if (args.length < 2)
       printUsageAndExit();
 
@@ -31,10 +42,8 @@ final object Runner {
       s0succs.map(a ⇒ p1.proc _ <**> succHunkT(a._1, a._2.toSeq)))
 
     printFailsAndExit(s1fails)
-    s1succs.foreach(x ⇒ printWarns(x._2))
-
-    System.out.println("Results:")
-    s1succs.foreach(x ⇒ System.out.println(x._1))
+    s1succs.foreach(x ⇒ stage1.Msg.printErrors(
+      System.err, x._1.source, x._1.anamnesis))
 
     executor.shutdownNow
   }

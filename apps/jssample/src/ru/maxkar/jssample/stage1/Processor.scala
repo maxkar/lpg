@@ -12,15 +12,12 @@ import java.util.concurrent.Executor
 
 import ru.maxkar.jssample.{stage0 ⇒ S0}
 
+import scala.collection.mutable.ArrayBuffer
+
 /** Processor object for the first stage. */
-final class Processor(implicit exec : Executor) {
-  def proc(input : S0.Item) : Hunk[S0.Item, Trace] = execT (tr ⇒ {
-    val b = Declarations.liftDeclarations(input.body,
-      new Declarations.DeclarationCallback {
-        def duplicateDeclaration(name: String, first: Attributes, next: Attributes): Unit = {
-          tr(TrDuplicateDeclaration(input.source, name, first, next))
-        }
-      })
-    S0.Item(input.source, input.path, b)
-  })
+final class Processor(implicit executor : Executor) {
+  def proc(input : S0.Item) : Hunk[Result, Trace] = calc {
+    val (b, dupes) = Declarations.liftDeclarations(input.body)
+    new Result(input.source, input.path, b, new Anamnesis1(dupes))
+  }
 }
