@@ -16,7 +16,7 @@ import scala.collection.mutable.ArrayBuffer
 
 /** Processor object for the first stage. */
 final class Processor(implicit executor : Executor) {
-  def proc(input : S0.Item) : Hunk[Result, Trace] = calc {
+  def proc(input : S0.Item) : Hunk[Result] = calc {
     val (b, dupes) = Declarations.liftDeclarations(input.body)
     new Result(input.source, input.path, b, new Anamnesis1(dupes))
   }

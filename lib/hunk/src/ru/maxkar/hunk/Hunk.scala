@@ -7,18 +7,18 @@ package ru.maxkar.hunk
  * a readily-available result at any given time. Such
  * result may be computed asynchronously/in parallel.
  */
-abstract class Hunk[+R, +T] {
+abstract class Hunk[+R] {
   import Hunk._
 
   /** Calculated a "dirty" immediate result.
    * Returns null if there is no result yet. Usefull
    * for the hunk implementations.
    */
-  protected def dirtyResult() : HunkResult[R, T]
+  protected def dirtyResult() : HunkResult[R]
 
 
   /** Tries to get a result if it already avialable. */
-  final def immediateResult() : Option[HunkResult[R, T]] = {
+  final def immediateResult() : Option[HunkResult[R]] = {
     val r = dirtyResult
     if (r == null)
       None
@@ -28,8 +28,8 @@ abstract class Hunk[+R, +T] {
 
 
   /** Blocking result accessor. */
-  def awaitResult() : HunkResult[R, T] = {
-    val waiter = new HunkResultWaiter[HunkResult[R, T]]
+  def awaitResult() : HunkResult[R] = {
+    val waiter = new HunkResultWaiter[HunkResult[R]]
     onComplete(waiter.publish)
     waiter.await
   }
@@ -41,7 +41,7 @@ abstract class Hunk[+R, +T] {
    * result. Callback may be called before returning
    * from the call to onComplete.
    */
-  def onComplete(handler : HunkResult[R, T] ⇒  Unit) : Unit
+  def onComplete(handler : HunkResult[R] ⇒  Unit) : Unit
 
 
   /** Invokes a handler on the thunk result.
@@ -49,7 +49,7 @@ abstract class Hunk[+R, +T] {
   def onResult(handler : R ⇒ Unit) : Unit = {
     onComplete(res ⇒ {
         res match {
-          case HunkSuccess(_, _, r) ⇒ handler(r)
+          case HunkSuccess(r) ⇒ handler(r)
           case _ ⇒ ()
         }
       })
@@ -59,27 +59,25 @@ abstract class Hunk[+R, +T] {
   /** Applies a function to a successfull result of
    * this thunk.
    */
-  def fmap[R1](f : R ⇒ R1) : Hunk[R1, T] = {
-    val res = new DeferredHunk[R1, T]
+  def fmap[R1](f : R ⇒ R1) : Hunk[R1] = {
+    val res = new DeferredHunk[R1]
     onComplete(r ⇒
       r match {
-        case a@HunkSuccess(_, _, r) ⇒
+        case a@HunkSuccess(r) ⇒
           try {
-            res.succeedD(Seq(a), f(r))
+            res.succeed(f(r))
           } catch {
-            case t : Throwable ⇒
-              res.failD(Seq(a), t)
+            case t : Throwable ⇒ res.fail(t)
           }
-        case e@HunkException(_, _, exn) ⇒
-          res.failD(Seq(e), exn)
+        case e@HunkException(exn) ⇒ res.fail(exn)
       })
     res
   }
 
 
   /** Simple application. */
-  def <*[R2, T1 >: T](other : Hunk[R2, T1]) : Hunk[R, T1] = fmap(Function.const _) <*> other
-  def *>[R2, T1 >: T](other : Hunk[R2, T1]) : Hunk[R2, T1] = fmap(Hunk.snd[R, R2]) <*> other
+  def <*[R2](other : Hunk[R2]) : Hunk[R] = fmap(Function.const _) <*> other
+  def *>[R2](other : Hunk[R2]) : Hunk[R2] = fmap(Hunk.snd[R, R2]) <*> other
 }
 
 
@@ -91,73 +89,35 @@ object Hunk {
 
 
   /** Create a hunk with a fixed success value. */
-  def succHunkT[R, T](res : R, trace : Seq[T]) : Hunk[R, T] =
-    new ImmediateHunk[R, T](new HunkSuccess[R, T](Seq.empty, trace, res))
+  def succHunk[R](res : R) : Hunk[R] =
+    new ImmediateHunk[R](new HunkSuccess[R](res))
 
 
   /** Creats a hunk which already fails. */
-  def failHunkT[R, T](fail : Throwable, trace : Seq[T]) : Hunk[R, T] =
-    new ImmediateHunk[R, T](new HunkException[R, T](Seq.empty, trace, fail))
+  def failHunk[R](fail : Throwable) : Hunk[R] =
+    new ImmediateHunk[R](new HunkException[R](fail))
 
 
   /** Calculates a hunk in synchronous way. */
-  def calc[R, T](block : ⇒ R) : Hunk[R, T] =
+  def calc[R](block : ⇒ R) : Hunk[R] =
     try {
-      succHunkT(block, Seq.empty)
+      succHunk(block)
     } catch {
-      case x : Throwable ⇒
-        failHunkT(x, Seq.empty)
+      case x : Throwable ⇒ failHunk(x)
     }
-
-
-  /** Calculates a hunk in synchronous way with tracing.
-   * Tracer in the body is not thread-safe.
-   */
-  def calcT[R, T](body : (T ⇒ Unit) ⇒ R) : Hunk[R, T] = {
-    val tracer = new ArrayBuffer[T]
-    try {
-      val res = body(tracer.+=)
-      succHunkT(res, tracer.toSeq)
-    } catch {
-      case x : Throwable ⇒
-        failHunkT(x, tracer.toSeq)
-    }
-  }
 
 
   /** Creates a hunk which executes in asynchronous way
    * using implicit executor.
    */
-  def exec[R, T](block : ⇒ R)(implicit executor : Executor) : Hunk[R, T] = {
-    val res = new DeferredHunk[R, T]
+  def exec[R](block : ⇒ R)(implicit executor : Executor) : Hunk[R] = {
+    val res = new DeferredHunk[R]
     executor.execute(new Runnable() {
         override def run() : Unit = {
           try {
             res.succeed(block)
           } catch {
-            case x : Throwable ⇒
-              res.fail(x)
-          }
-        }
-      })
-    res
-  }
-
-
-  /** Creates a traceable hunk which executes in asynchronous way
-   * using implicit executor.
-   */
-  def execT[R, T](body : (T ⇒ Unit) ⇒ R)(implicit executor : Executor) : Hunk[R, T] = {
-    val res = new DeferredHunk[R, T]
-    executor.execute(new Runnable() {
-        override def run() : Unit = {
-          val tracer = new ArrayBuffer[T]
-          try {
-            val v = body(tracer.+=)
-            res.succeedT(tracer.toSeq, v)
-          } catch {
-            case x : Throwable ⇒
-              res.failT(tracer.toSeq, x)
+            case x : Throwable ⇒ res.fail(x)
           }
         }
       })
@@ -166,55 +126,48 @@ object Hunk {
 
 
   /** Awaits all hunks and returns it's results. */
-  def awaitAll[R, T](hunks : Seq[Hunk[R, T]]) : Seq[HunkResult[R, T]] = {
+  def awaitAll[R](hunks : Seq[Hunk[R]]) : Seq[HunkResult[R]] = {
     hunks.map(x ⇒  x.awaitResult)
   }
 
 
   /** Awaits all hunks and splits results into "successes" and "failures".
    */
-  def awaitSplit[R, T](hunks : Seq[Hunk[R, T]]) :
-      (Seq[(Throwable, Iterable[T])], Seq[(R, Iterable[T])]) = {
+  def awaitSplit[R](hunks : Seq[Hunk[R]]) :
+      (Seq[Throwable], Seq[R]) = {
 
-    val succs = new ArrayBuffer[(R, Iterable[T])](hunks.length)
-    val fails = new ArrayBuffer[(Throwable, Iterable[T])]
+    val succs = new ArrayBuffer[R](hunks.length)
+    val fails = new ArrayBuffer[Throwable]
 
     awaitAll(hunks).foreach(x ⇒ x match {
-        case HunkException(_, _, exn) ⇒
-          fails += ((exn, x.allTraces))
-        case HunkSuccess(_, _, v) ⇒
-          succs += ((v, x.allTraces))
+        case HunkException(exn) ⇒ fails += exn
+        case HunkSuccess(v) ⇒ succs += v
       })
     (fails, succs)
   }
 
 
   /** Applicative operation. */
-  implicit class ApplicativeHunk[R1, R2, T](
-        val x : Hunk[R1 ⇒ R2, T]) extends AnyVal {
-    def <*>[T2 >: T](other : Hunk[R1, T2]) : Hunk[R2, T2] = {
-      val res = new DeferredHunk[R2, T2]
+  implicit class ApplicativeHunk[R1, R2](
+        val x : Hunk[R1 ⇒ R2]) extends AnyVal {
+    def <*>(other : Hunk[R1]) : Hunk[R2] = {
+      val res = new DeferredHunk[R2]
 
       x.onComplete(x1 ⇒
-        other.onComplete(x2 ⇒ {
-          x1 match {
-            case HunkException(_, _, exn) ⇒
-              res.failD(Seq(x1, x2), exn)
-            case HunkSuccess(_, _, r1) ⇒
+        x1 match {
+          case HunkException(exn) ⇒ res.fail(exn)
+          case HunkSuccess(r1) ⇒
+            other.onComplete(x2 ⇒
               x2 match {
-                case HunkException(_, _, exn) ⇒
-                  res.failD(Seq(x1, x2), exn)
-                case HunkSuccess(_, _, r2) ⇒
+                case HunkException(exn) ⇒ res.fail(exn)
+                case HunkSuccess(r2) ⇒
                   try {
-                    res.succeedD(Seq(x1, x2), r1(r2))
+                    res.succeed(r1(r2))
                   } catch {
-                    case t : Throwable ⇒
-                      res.failD(Seq(x1, x2), t)
+                    case t : Throwable ⇒ res.fail(t)
                   }
-              }
-          }
-        }))
-
+              })
+        })
       res
     }
   }
@@ -225,36 +178,27 @@ object Hunk {
   implicit class ApplicativeFunction[F1, F2](
         val x : F1 ⇒  F2) extends AnyVal {
     @inline
-    def <*>[T](other : Hunk[F1, T]) : Hunk[F2, T] =
+    def <*>(other : Hunk[F1]) : Hunk[F2] =
       other.fmap(x)
   }
 
 
 
   /** Monadic function operation. */
-  implicit class MonadicFunction[R1, R2, T](
-      val x : R1 ⇒ Hunk[R2, T]) extends AnyVal {
+  implicit class MonadicFunction[R1, R2](
+      val x : R1 ⇒ Hunk[R2]) extends AnyVal {
 
-    def <**>(other : Hunk[R1, T]) : Hunk[R2, T] = {
-      val res = new DeferredHunk[R2, T]
+    def <**>(other : Hunk[R1]) : Hunk[R2] = {
+      val res = new DeferredHunk[R2]
 
       other.onComplete(base ⇒ base match {
-          case a@HunkSuccess(_, _, r) ⇒
+          case HunkException(exn) ⇒ res.fail(exn)
+          case HunkSuccess(r) ⇒
             try {
-              val sub = x(r)
-
-              sub.onComplete(subr ⇒  subr match {
-                  case a1@HunkSuccess(_, _, r) ⇒
-                    res.succeedD(Seq(a, a1), r)
-                  case f@HunkException(_, _, e) ⇒
-                    res.failD(Seq(a, f), e)
-              })
+              x(r).onComplete(res.resolve)
             } catch {
-              case x : Throwable ⇒
-                res.failD(Seq(a), x)
+              case x : Throwable ⇒ res.fail(x)
             }
-          case f@HunkException(_, _, exn) ⇒
-            res.failD(Seq(f), exn)
         })
 
       res
@@ -263,38 +207,28 @@ object Hunk {
 
 
   /** Super monadic composition. */
-  implicit class SuperMonadicFunction[R1, R2, T](
-       val x : Hunk[R1 ⇒ Hunk[R2, T], T]) extends AnyVal {
+  implicit class SuperMonadicFunction[R1, R2](
+       val x : Hunk[R1 ⇒ Hunk[R2]]) extends AnyVal {
 
-    def <**>(other : Hunk[R1, T]) : Hunk[R2, T] = {
-      val res = new DeferredHunk[R2, T]
+    def <**>(other : Hunk[R1]) : Hunk[R2] = {
+      val res = new DeferredHunk[R2]
 
       x.onComplete(r1 ⇒
-          other.onComplete(r2 ⇒ {
-              r1 match {
-                case a1@HunkException(_, _, exn) ⇒
-                  res.failD(Seq(a1, r2), exn)
-                case a1@HunkSuccess(_, _, v1) ⇒
-                  r2 match {
-                    case a2@HunkException(_, _, exn) ⇒
-                      res.failD(Seq(a1, a2), exn)
-                    case a2@HunkSuccess(_, _, v2) ⇒
-                      try {
-                        val sub = v1(v2)
-                        sub.onComplete(subr ⇒  subr match {
-                            case a3@HunkSuccess(_, _, v3) ⇒
-                              res.succeedD(Seq(a1, a2, a3), v3)
-                            case a3@HunkException(_, _, exn) ⇒
-                              res.failD(Seq(a1, a2, a3), exn)
-                          })
-                      } catch {
-                        case exn : Throwable ⇒
-                          res.failD(Seq(r1, r2), exn)
-                      }
+        r1 match {
+          case HunkException(exn) ⇒ res.fail(exn)
+          case HunkSuccess(v1) ⇒
+            other.onComplete(r2 ⇒
+              r2 match {
+                case HunkException(exn) ⇒ res.fail(exn)
+                case HunkSuccess(v2) ⇒
+                  try {
+                    v1(v2).onComplete(res.resolve)
+                  } catch {
+                    case exn : Throwable ⇒ res.fail(exn)
                   }
               }
-            }
-        ))
+            )
+        })
       res
     }
   }

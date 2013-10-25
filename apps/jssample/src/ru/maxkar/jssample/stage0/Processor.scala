@@ -24,7 +24,7 @@ final class Processor(implicit executor : Executor) {
 
 
   /** Inputs a file content. */
-  private def getContent(input : File) : Hunk[Array[Char], Trace] = calc {
+  private def getContent(input : File) : Hunk[Array[Char]] = calc {
     try {
       Files.fileAsCharsEnc(input, "UTF-8")
     } catch {
@@ -43,7 +43,7 @@ final class Processor(implicit executor : Executor) {
 
 
   /** Parses a file content. */
-  private def parseContent(file : File)(content : Array[Char]) : Hunk[SList[BaseItem], Trace] = calc {
+  private def parseContent(file : File)(content : Array[Char]) : Hunk[SList[BaseItem]] = calc {
     val input = Input.fromCharArray(content)
     try {
       SParser.parseSFile(parseAttr)(input)
@@ -56,7 +56,7 @@ final class Processor(implicit executor : Executor) {
 
 
   /** Processes one file. */
-  private def processFile(input : File, path : Seq[String]) : Hunk[Res, Trace] = {
+  private def processFile(input : File, path : Seq[String]) : Hunk[Res] = {
     val content = getContent(input)
     val body = parseContent(input) _ <**> content
     Item.curried(input)(path) <*> body
@@ -65,8 +65,8 @@ final class Processor(implicit executor : Executor) {
 
 
   /** Processes a list of inputs into list of stage-0 items. */
-  def process(inputs : Seq[String]) : Seq[Hunk[Res, Trace]] = {
-    val res = new ArrayBuffer[Hunk[Res, Trace]]
+  def process(inputs : Seq[String]) : Seq[Hunk[Res]] = {
+    val res = new ArrayBuffer[Hunk[Res]]
 
     def acceptFile(f : File, path : Seq[String]) : Unit = {
       if (path.isEmpty)

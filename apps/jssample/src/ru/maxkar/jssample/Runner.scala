@@ -23,16 +23,15 @@ final object Runner {
     val (s0fails, s0succs) = awaitSplit(items)
 
     printFailsAndExit(s0fails)
-    s0succs.foreach(x ⇒ printWarns(x._2))
 
     val p1 = new stage1.Processor
 
     val (s1fails, s1succs) = awaitSplit(
-      s0succs.map(a ⇒ p1.proc _ <**> succHunkT(a._1, a._2.toSeq)))
+      s0succs.map(a ⇒ p1.proc _ <**> succHunk(a)))
 
     printFailsAndExit(s1fails)
     s1succs.foreach(x ⇒ stage1.Msg.printErrors(
-      System.err, x._1.source, x._1.anamnesis))
+      System.err, x.source, x.anamnesis))
 
     executor.shutdownNow
   }
@@ -41,10 +40,10 @@ final object Runner {
   /** Prints fails and exits. Exists only when at least on
    * failure exists.
    */
-  private def printFailsAndExit(x : Seq[(Throwable, _)]) : Unit = {
+  private def printFailsAndExit(x : Seq[Throwable]) : Unit = {
     if (x.isEmpty)
       return
-    x.foreach(f ⇒ printFail(f._1))
+    x.foreach(printFail)
     System.exit(2)
   }
 

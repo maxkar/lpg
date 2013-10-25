@@ -7,15 +7,15 @@ import scala.collection.mutable.ArrayBuffer
  * User must manually mark this hunk as "resolved" with some
  * particular value.
  */
-final class DeferredHunk[R, T] extends Hunk[R, T] {
+final class DeferredHunk[R] extends Hunk[R] {
   /** List of termination callbacks. */
-  private var waiters = new ArrayBuffer[HunkResult[R, T] ⇒ Unit]
+  private var waiters = new ArrayBuffer[HunkResult[R] ⇒ Unit]
   /** Dirty result value. */
-  @volatile private var result : HunkResult[R, T] = null
+  @volatile private var result : HunkResult[R] = null
 
-  override protected def dirtyResult() : HunkResult[R, T] = result
+  override protected def dirtyResult() : HunkResult[R] = result
 
-  override def onComplete(cb : HunkResult[R, T] ⇒  Unit) : Unit = {
+  override def onComplete(cb : HunkResult[R] ⇒  Unit) : Unit = {
     this synchronized {
       var wlist = waiters
       /* Not-complete check. */
@@ -32,7 +32,7 @@ final class DeferredHunk[R, T] extends Hunk[R, T] {
   /** Pushes a result and marks this hunk as resolved with
    * this particular result.
    */
-  def resolve(res : HunkResult[R, T]) : Unit = {
+  def resolve(res : HunkResult[R]) : Unit = {
     val cblist =
       this synchronized {
         if (waiters == null)
@@ -54,50 +54,11 @@ final class DeferredHunk[R, T] extends Hunk[R, T] {
   }
 
 
-  /** Succeedes a hunk with a list of dependencies
-   * and traces. */
-  def succeedDT(
-        deps : Seq[HunkResult[_, T]],
-        traces : Seq[T],
-        res : R)
-      : Unit =
-    resolve(HunkSuccess(deps, traces, res))
-
-
-  /** Succeedes a hunk with a trace. */
-  def succeedT(traces : Seq[T], res : R) : Unit =
-    resolve(HunkSuccess(Seq.empty, traces, res))
-
-
-  /** Succeedes a hunk with dependencies. */
-  def succeedD(deps : Seq[HunkResult[_, T]], res : R) : Unit =
-    resolve(HunkSuccess(deps, Seq.empty, res))
-
-
   /** Succeedes a hunk with no traces or dependencies. */
-  def succeed(res : R) : Unit = resolve(HunkSuccess(Seq.empty, Seq.empty, res))
-
-
-  /** Fails a hunk with a given dependencies and traces. */
-  def failDT(
-        deps : Seq[HunkResult[_, T]],
-        traces : Seq[T],
-        res : Throwable)
-      : Unit =
-    resolve(HunkException(deps, traces, res))
-
-
-  /** Fails a hunk with a trace. */
-  def failT(traces : Seq[T], res : Throwable) : Unit =
-    resolve(HunkException(Seq.empty, traces, res))
-
-
-  /** Fails a hunk with dependencies. */
-  def failD(deps : Seq[HunkResult[_, T]], res : Throwable) : Unit =
-    resolve(HunkException(deps, Seq.empty, res))
+  def succeed(res : R) : Unit = resolve(HunkSuccess(res))
 
 
   /** Fails a hunk with no traces or dependencies. */
-  def fail(res : Throwable) : Unit = resolve(HunkException(Seq.empty, Seq.empty, res))
+  def fail(res : Throwable) : Unit = resolve(HunkException(res))
 
 }
