@@ -16,9 +16,21 @@ private final class Declarations {
   private def liftDefault(expr : SList[BaseItem]) : SExpression[BaseItem] = {
     val sub = new DeclarationScopeBuilder(messages)
 
-    expr.items.foreach(sub.processDeclaration)
+    val itr = expr.items.iterator
+    while (itr.hasNext)
+      sub.processDeclaration(itr.next)
 
-    val body = expr.items.map(liftDecls)
+    val nbody = new Array[SExpression[BaseItem]](expr.items.length)
+
+    var iptr = 0
+    val bodyitr = expr.items.iterator
+
+    while (bodyitr.hasNext) {
+      nbody(iptr) = liftDecls(bodyitr.next)
+      iptr += 1
+    }
+
+    val body = nbody.toSeq
 
     val names = sub.names
     val atts = expr.atts + (Declarations.declaredLocals, names)
