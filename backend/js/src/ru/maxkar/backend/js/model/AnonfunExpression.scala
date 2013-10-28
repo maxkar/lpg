@@ -6,6 +6,7 @@ import ru.maxkar.backend.js.out.CompactContext
 private[model] final class AnonfunExpression(body : FunctionBody)
     extends Expression {
   private[model] val priority = 0
+  private[model] def canStartStatement() : Boolean = false
 
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
     ctx.write("function")

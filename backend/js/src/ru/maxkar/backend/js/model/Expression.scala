@@ -8,6 +8,8 @@ trait Expression extends Statement {
   /** Expression priority. Items with a lower value binds earlier. */
   private[model] val priority : Int
 
+  /** Checks whether this expression can start a statement. */
+  private[model] def canStartStatement() : Boolean
 
   /** Writes this element into the output in compact form.*/
   private[model] def writeExpression(ctx : CompactContext) : Unit
@@ -37,7 +39,12 @@ trait Expression extends Statement {
 
 
   private[model] def writeStatement(ctx : CompactContext) : Unit = {
+    val brackets = !canStartStatement
+    if (brackets)
+      ctx.writeChar('(')
      writeExpression(ctx)
+    if (brackets)
+      ctx.writeChar(')')
      ctx.writeChar(';')
   }
 }

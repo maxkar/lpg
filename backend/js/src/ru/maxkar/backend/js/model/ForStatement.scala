@@ -8,7 +8,7 @@ private[model] final class ForStatement(
     extends Statement {
   private[model] def writeStatement(ctx : CompactContext) : Unit = {
     ctx.write("for(;")
-    update.writeExpression(ctx)
+    cond.writeExpression(ctx)
     ctx.writeChar(';')
     update.writeExpression(ctx)
     ctx.writeChar(')')

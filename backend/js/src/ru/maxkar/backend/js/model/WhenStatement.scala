@@ -9,8 +9,12 @@ private[model] final class WhenStatement(cond : Expression,
   private[model] def writeStatement(ctx : CompactContext) : Unit = {
     ctx.write("if(")
     cond.writeExpression(ctx)
-    ctx.write("){")
+    ctx.write(")")
+    if (body.size != 1)
+      ctx.writeChar('{')
     body.foreach(_.writeStatement(ctx))
-    ctx.writeChar('}')
+    if (body.size != 1)
+      ctx.writeChar('}')
+    ctx.write("else{}")
   }
 }

@@ -4,7 +4,7 @@ import ru.maxkar.backend.js.out.CompactContext
 
 /** Javascript file. */
 final class JSFile private[model](
-    extraGlobs : scala.collection.Set[String],
+    extGlobals : Iterable[String],
     vars : Seq[String],
     funcs :Seq[(String, FunctionBody)],
     inits :Seq[Statement]) {
@@ -31,7 +31,7 @@ final class JSFile private[model](
   /** Writes context of this file into a writer. */
   def writeToWriter(w : java.io.Writer) : Unit = {
     val ctx = CompactContext.forWriter(w,
-      (extraGlobs ++ vars ++ funcs.map(x ⇒  x._1)).toSet)
+      (extGlobals ++ vars ++ funcs.map(x ⇒  x._1)).toSet)
     writeTo(ctx)
   }
 

@@ -27,7 +27,7 @@ final object Model {
 
   /** Creates a string expression. */
   def literal(expr : String) : Expression = {
-    new StringExpression(quoteString(expr))
+    new StringExpression(expr)
   }
 
   /** Creates a number literal expression. */
@@ -130,15 +130,15 @@ final object Model {
 
   /** "Type of" expression. */
   def typeof(base : Expression) : Expression =
-    new UnaryExpression(base, " typeof ")
+    new UnaryExpression(base, "typeof ")
 
   /** "Void" expression. */
   def voidof(base : Expression) : Expression =
-    new UnaryExpression(base, " void ")
+    new UnaryExpression(base, "void ")
 
   /** "Delete" expression. */
   def delete(base : NonprimitiveExpression) : Expression =
-    new UnaryExpression(base, " delete ")
+    new UnaryExpression(base, "delete ")
 
   /** Multiplication expression. */
   def mul(left : Expression, right : Expression) : Expression =
@@ -193,7 +193,7 @@ final object Model {
     new BinaryExpression(left, right, " in ", 8)
 
   /** Conditional cast expression. */
-  def asInstanceOf(left : Expression, right : Expression) : Expression =
+  def testInstanceOf(left : Expression, right : Expression) : Expression =
     new BinaryExpression(left, right, " instanceof ", 8)
 
   /** Equals expression. */
@@ -209,7 +209,7 @@ final object Model {
     new BinaryExpression(left, right, "===", 9)
 
   /** String non-equals expression. */
-  def stictNotQuals(left : Expression, right : Expression) : Expression =
+  def strictNotEquals(left : Expression, right : Expression) : Expression =
     new BinaryExpression(left, right, "!==", 9)
 
   /** Bitwise and expression. */
@@ -255,7 +255,7 @@ final object Model {
 
   /** Inplace division expression. */
   def inplaceDiv(host : LeftValue, value : Expression) : Expression =
-    new AssignmentExpression(host, value, "*=")
+    new AssignmentExpression(host, value, "/=")
 
   /** Inplace remainder expression. */
   def inplaceRem(host : LeftValue, value : Expression) : Expression =
@@ -322,7 +322,7 @@ final object Model {
     new WhenStatement(cond, body)
 
   /** Chooses one of two statements. */
-  def cond(condition : Expression, onTrue : Seq[Statement],
+  def doCond(condition : Expression, onTrue : Seq[Statement],
       onFalse : Seq[Statement]): Statement =
     new IfStatement(condition, onTrue, onFalse)
 
@@ -363,11 +363,11 @@ final object Model {
 
   /** Creates a javascript file. */
   def file(
-      extraGlobs : scala.collection.Set[String],
+      extGlobals : Iterable[String],
       vars : Seq[String],
       funcs :Seq[(String, FunctionBody)],
       inits :Seq[Statement]) : JSFile =
-    new JSFile(extraGlobs, vars, funcs, inits)
+    new JSFile(extGlobals, vars, funcs, inits)
 
 
 

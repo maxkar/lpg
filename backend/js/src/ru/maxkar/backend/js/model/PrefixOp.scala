@@ -7,6 +7,7 @@ private[model] final class PrefixOp(peer : LeftValue, op : String)
     extends Expression {
 
   private[model] val priority = 2
+  private[model] def canStartStatement() : Boolean = true
 
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
     ctx.write(op)

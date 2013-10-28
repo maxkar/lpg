@@ -7,12 +7,13 @@ private[model] final class AssignmentExpression(
     extends Expression {
 
   private[model] val priority : Int = 17
+  private[model] def canStartStatement() : Boolean = host.canStartStatement
 
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
     host.writeExpression(ctx)
     ctx.write(sign)
 
-    val bracket = host.priority > 17
+    val bracket = value.priority > 17
 
     if (bracket)
       ctx.writeChar('(')

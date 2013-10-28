@@ -8,6 +8,7 @@ private[model] final class NewExpression(
       extends NonprimitiveExpression {
 
   private[model] val priority : Int = 0
+  private[model] def canStartStatement() : Boolean = true
 
 
   private[model] def writeExpression(ctx : CompactContext) : Unit = {

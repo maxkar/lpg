@@ -7,6 +7,8 @@ private[model] final class BinaryMinusExpression(
     extends Expression {
 
   private[model] val priority : Int = 6
+  private[model] def canStartStatement() : Boolean =
+    left.priority > priority || left.canStartStatement
 
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
     val lbracket = left.priority > priority

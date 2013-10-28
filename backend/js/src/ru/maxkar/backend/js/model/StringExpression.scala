@@ -7,6 +7,7 @@ private[model] final class StringExpression(
       value : String) extends Expression {
 
   private[model] val priority = 0
+  private[model] def canStartStatement() : Boolean = true
 
   private[model] def writeExpression(ctx : CompactContext) : Unit =
     ctx.write(Model.quoteString(value))

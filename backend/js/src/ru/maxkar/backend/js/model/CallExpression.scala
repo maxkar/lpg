@@ -9,6 +9,9 @@ private[model] final class CallExpression(
 
   private[model] val priority : Int = 0
 
+  private[model] def canStartStatement() : Boolean =
+    peer.priority > priority || peer.canStartStatement
+
 
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
     val useBracket = peer.priority > 2

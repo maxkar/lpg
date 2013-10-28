@@ -7,6 +7,7 @@ private[model] final class UnaryExpression(
       extends Expression {
 
   private[model] val priority = 4
+  private[model] def canStartStatement() : Boolean = true
 
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
     ctx.write(code)

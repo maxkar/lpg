@@ -7,6 +7,7 @@ private[model] final class ObjectExpression(items : Seq[(String, Expression)])
     extends Expression {
 
   private[model] val priority = 0
+  private[model] def canStartStatement() : Boolean = false
 
   /** Writes one entry only. */
   private def writeEntry(ctx : CompactContext, entry : (String, Expression)) : Unit = {

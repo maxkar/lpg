@@ -62,6 +62,8 @@ private[js] object CompactContext {
 
 
   val KEYWORDS = Set(
+    "arguments",
+
     "break",
     "case",
     "catch",

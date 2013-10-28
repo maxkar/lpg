@@ -17,10 +17,12 @@ private[model] final class IfStatement(cond : Expression,
     if (onTrue.size != 1)
       ctx.writeChar('}')
 
-    ctx.write(" else ")
+    ctx.write("else")
 
     if (onFalse.size != 1)
       ctx.writeChar('{')
+    else
+      ctx.writeChar(' ')
     onFalse.foreach(_.writeStatement(ctx))
     if (onFalse.size != 1)
       ctx.writeChar('}')

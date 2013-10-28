@@ -7,6 +7,10 @@ private[model] final class CommaExpression(
     extends Expression {
 
   private[model] val priority : Int = 18
+
+  private[model] def canStartStatement() : Boolean =
+    left.priority > priority
+
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
     left.writeExpression(ctx)
     ctx.writeChar(',')

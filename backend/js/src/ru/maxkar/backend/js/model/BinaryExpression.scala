@@ -7,6 +7,9 @@ private[model] final class BinaryExpression(
       private[model] val priority : Int)
     extends Expression {
 
+  private[model] def canStartStatement() : Boolean =
+    left.priority > priority || left.canStartStatement
+
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
     val lbracket = left.priority > priority
     val rbracket = right.priority >= priority

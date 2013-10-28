@@ -11,7 +11,7 @@ private[model] final class SwitchStatement(
   private[model] def writeStatement(ctx : CompactContext) : Unit = {
     ctx.write("switch(")
     chooser.writeExpression(ctx)
-    ctx.writeChar('}')
+    ctx.write("){")
 
     for ((ks, ss) ← rmap) {
       if (!ks.isEmpty) {
@@ -31,5 +31,6 @@ private[model] final class SwitchStatement(
         ctx.write("default:")
         x.foreach(_.writeStatement(ctx))
     }
+    ctx.writeChar('}')
   }
 }

@@ -17,7 +17,7 @@ private[model] final class TryCatchStatement(
     val ss = ctx.sub(Set(exnId), Seq.empty)
     ss.write(ss.resolveVariable(exnId))
     ss.write("){")
-    exnHandler.foreach(_.writeStatement(ctx))
+    exnHandler.foreach(_.writeStatement(ss))
     ss.write("}")
   }
 }

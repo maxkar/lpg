@@ -8,6 +8,8 @@ private[model] final class NamedfunExpression(selfid : AnyRef, body : FunctionBo
     extends Expression {
   private[model] val priority = 0
 
+  private[model] def canStartStatement() : Boolean = false
+
   private[model] def writeExpression(baseCtx : CompactContext) : Unit = {
     val ctx = baseCtx.sub(Set(selfid), Set.empty)
     ctx.write("function ")

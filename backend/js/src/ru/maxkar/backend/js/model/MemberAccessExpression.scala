@@ -8,6 +8,9 @@ private[model] final class MemberAccessExpression(
 
   private[model] val priority : Int = 0
 
+  private[model] def canStartStatement() : Boolean =
+    base.priority > priority || base.canStartStatement
+
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
     val needBrackets = base.priority > priority
     if (needBrackets)

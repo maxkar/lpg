@@ -27,7 +27,7 @@ private[out] final class IdGenerator(
   private def genInternal() : IdGenNode = {
     val g1 = genCurSize
     if (g1 != null)
-      g1
+      return g1
     grow
 
     new IdGenNode(new String(content), this)
@@ -45,9 +45,9 @@ private[out] final class IdGenerator(
 
     var ptr = 1
     while (ptr < nlen) {
-      ptr += 1
       cgens(ptr) = middle()
       content(ptr) = cgens(ptr).next
+      ptr += 1
     }
   }
 
