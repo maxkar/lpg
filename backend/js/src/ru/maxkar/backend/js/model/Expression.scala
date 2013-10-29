@@ -8,8 +8,14 @@ trait Expression extends Statement {
   /** Expression priority. Items with a lower value binds earlier. */
   private[model] val priority : Int
 
+  /** Checks if this expression is comma-safe. */
+  private[model] val isCommaSafe : Boolean = true
+
+  /** Checks if this expression is minus-safe. */
+  private[model] val isMinusSafe : Boolean = true
+
   /** Checks whether this expression can start a statement. */
-  private[model] def canStartStatement() : Boolean
+  private[model] val canStartStatement : Boolean = true
 
   /** Writes this element into the output in compact form.*/
   private[model] def writeExpression(ctx : CompactContext) : Unit
@@ -17,34 +23,31 @@ trait Expression extends Statement {
   /** Writes this expression after a minus sign.
    * Default implementation writes this expression as-is. */
   private[model] def writeExpressionAfterMinus(
-      writer : CompactContext) : Unit =
+      writer : CompactContext) : Unit = {
+    if (!isMinusSafe)
+      writer.write(' ')
     writeExpression(writer)
+  }
 
   /** Writes an expression in comma-safe manner.
    * This method is called in context where comma should not occur in the
    * top level of the expression.
-   * Default implementation just writes an expression as-is.
    */
   private[model] def writeExpressionCommaSafe(ctx : CompactContext) : Unit =
-    writeExpression(ctx)
+    ctx.bracketed(!isCommaSafe, '(', ')', writeExpression(ctx))
 
   /** Writes this expression as a member accessor.
    * This implementation uses a square brackets for the expression.
    */
   private[model] def writeAsMemberAccessor(ctx : CompactContext) : Unit = {
-    ctx.writeChar('[')
+    ctx.write('[')
     writeExpression(ctx)
-    ctx.writeChar(']')
+    ctx.write(']')
   }
 
 
   private[model] def writeStatement(ctx : CompactContext) : Unit = {
-    val brackets = !canStartStatement
-    if (brackets)
-      ctx.writeChar('(')
-     writeExpression(ctx)
-    if (brackets)
-      ctx.writeChar(')')
-     ctx.writeChar(';')
+    ctx.bracketed(!canStartStatement, '(', ')', writeExpression(ctx))
+    ctx.write(';')
   }
 }

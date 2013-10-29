@@ -138,6 +138,7 @@ final class TestCompactWrite extends JUnitSuite {
     "--g1;" ?= prefixDec(global("g1"))
     "g1++;" ?= postfixInc(global("g1"))
     "g1--;" ?= postfixDec(global("g1"))
+    "- --g1;" ?= neg(prefixDec(global("g1")))
   }
 
 
@@ -152,6 +153,7 @@ final class TestCompactWrite extends JUnitSuite {
     "typeof 3;" ?= typeof(3)
     "void typeof 3;" ?= voidof(typeof(3))
     "delete g1;" ?= delete(global("g1"))
+    "-(1+2);" ?= neg(add(1,2))
   }
 
   /** Tests for tier-5 expressions. */
@@ -232,7 +234,7 @@ final class TestCompactWrite extends JUnitSuite {
   /** Tests a comma expression. */
   @Test
   def testComma() : Unit = {
-    "(1,2,3);" ?= seqExpr(seqExpr(1,2),3)
+    "1,2,3;" ?= seqExpr(seqExpr(1,2),3)
     "g1((1,2),3);" ?= call(global("g1"), seqExpr(1,2), 3)
     "[(1,2)];" ?= arrayliteral(seqExpr(1,2))
     "({a:(1,2)});" ?= objectliteral(("a", seqExpr(1,2)))

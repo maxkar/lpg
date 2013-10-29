@@ -18,7 +18,7 @@ private[model] final class SwitchStatement(
         ks.foreach(ck ⇒  {
             ctx.write("case ")
             ck.writeExpression(ctx)
-            ctx.writeChar(':')
+            ctx.write(':')
           })
         ss.foreach(_.writeStatement(ctx))
         ctx.write("break;")
@@ -31,6 +31,6 @@ private[model] final class SwitchStatement(
         ctx.write("default:")
         x.foreach(_.writeStatement(ctx))
     }
-    ctx.writeChar('}')
+    ctx.write('}')
   }
 }

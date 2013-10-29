@@ -20,13 +20,13 @@ final class FunctionBody(
     val ctx = baseCtx.sub(allLocals, labels)
 
     /* Write args. */
-    ctx.writeChar('(')
+    ctx.write('(')
     val argsi = args.iterator
     if (argsi.hasNext)
-      ctx.write(ctx.resolveVariable(argsi.next))
+      ctx.writeVariable(argsi.next)
     while (argsi.hasNext) {
-      ctx.writeChar(',')
-      ctx.write(ctx.resolveVariable(argsi.next))
+      ctx.write(',')
+      ctx.writeVariable(argsi.next)
     }
     ctx.write("){")
 
@@ -34,12 +34,12 @@ final class FunctionBody(
     if (!vars.isEmpty) {
       ctx.write("var ")
       val varsi = vars.iterator
-      ctx.write(ctx.resolveVariable(varsi.next))
+      ctx.writeVariable(varsi.next)
       while (varsi.hasNext) {
-        ctx.writeChar(',')
-        ctx.write(ctx.resolveVariable(varsi.next))
+        ctx.write(',')
+        ctx.writeVariable(varsi.next)
       }
-      ctx.writeChar(';')
+      ctx.write(';')
     }
 
     /* Write local functions. */
@@ -49,7 +49,7 @@ final class FunctionBody(
     stmt.foreach(x ⇒ x.writeStatement(ctx))
 
     /* End function. */
-    ctx.writeChar('}')
+    ctx.write('}')
   }
 
 
@@ -57,7 +57,7 @@ final class FunctionBody(
   private def writeFunc(ctx : CompactContext, id : AnyRef,
       body : FunctionBody) : Unit = {
     ctx.write("function ")
-    ctx.write(ctx.resolveVariable(id))
+    ctx.writeVariable(id)
     body.writeTo(ctx)
   }
 }

@@ -6,8 +6,8 @@ import ru.maxkar.backend.js.out.CompactContext
 private[model] final class StringExpression(
       value : String) extends Expression {
 
-  private[model] val priority = 0
-  private[model] def canStartStatement() : Boolean = true
+  val priority = 0
+  override val canStartStatement = true
 
   private[model] def writeExpression(ctx : CompactContext) : Unit =
     ctx.write(Model.quoteString(value))
@@ -16,7 +16,7 @@ private[model] final class StringExpression(
     if (!validSimpleId(ctx))
       super.writeAsMemberAccessor(ctx)
     else {
-      ctx.writeChar('.')
+      ctx.write('.')
       ctx.write(value)
     }
   }

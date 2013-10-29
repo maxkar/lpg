@@ -17,10 +17,10 @@ final class JSFile private[model](
       val viter = vars.iterator
       ctx.write(viter.next)
       while (viter.hasNext) {
-        ctx.writeChar(',')
+        ctx.write(',')
         ctx.write(viter.next)
       }
-      ctx.writeChar(';')
+      ctx.write(';')
     }
     funcs.foreach(x ⇒ writeFunc(ctx, x._1, x._2))
 

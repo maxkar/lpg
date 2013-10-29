@@ -12,24 +12,52 @@ private[js] class CompactContext(
   /** Writes a text into the output. */
   def write(txt : String) : Unit = base.write(txt)
 
-  /** Writes a single character. */
-  def writeChar(c : Char) : Unit = base.write(c)
 
-  /** Ensures a global variable in the context. */
-  def ensureGlobal(g : String) : Unit = {
+  /** Writes a character. */
+  def write(c : Char) : Unit = base.write(c)
+
+
+  /** Writes a global variable. */
+  def writeGlobal(g : String) : Unit = {
     if (!globals(g))
       throw new IllegalArgumentException("Unknown global ref to " + g)
+    write(g)
   }
 
-  /** Resolves a variable in the context. */
-  def resolveVariable(v : AnyRef) : String =
-    vars.lookup(v)
+  /** Writes a variable. */
+  def writeVariable(v : AnyRef) : Unit =
+    write(vars.lookup(v))
 
-  /** Resolves a label. */
-  def resolveLabel(v : AnyRef) : String =
-    labels.lookup(v)
 
-  /** Creates a subcontext. */
+  /** Writes a label. */
+  def writeLabel(v : AnyRef) : Unit =
+    write(labels.lookup(v))
+
+
+  /** Writes a possible-bracketed expression. */
+  def bracketed(cond : Boolean, lbracket : Char, rbracket : Char,
+      body : ⇒ Unit) : Unit = {
+    if (cond)
+      write(lbracket)
+    body
+    if (cond)
+      write(rbracket)
+  }
+
+
+  /** Runs a operation with a separator. */
+  def sepby[T](x : Iterable[T], sep : Char, handler : T ⇒ Unit) : Unit = {
+    val itr = x.iterator
+    if (itr.hasNext)
+      handler(itr.next)
+    while (itr.hasNext) {
+      write(sep)
+      handler(itr.next)
+    }
+  }
+
+
+  /** Creates a subcontext with same labels. */
   def sub(locals : Iterable[AnyRef], sublabels : Iterable[AnyRef]) : CompactContext =
     new CompactContext(base, vars.sub(locals),
       labels.sub(sublabels), globals)
@@ -106,7 +134,4 @@ private[js] object CompactContext {
     "static",
     "yield"
   )
-
-
-
 }

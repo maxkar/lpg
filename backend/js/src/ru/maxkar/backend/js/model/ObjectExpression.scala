@@ -6,8 +6,8 @@ import ru.maxkar.backend.js.out.CompactContext
 private[model] final class ObjectExpression(items : Seq[(String, Expression)])
     extends Expression {
 
-  private[model] val priority = 0
-  private[model] def canStartStatement() : Boolean = false
+  val priority = 0
+  override val canStartStatement = false
 
   /** Writes one entry only. */
   private def writeEntry(ctx : CompactContext, entry : (String, Expression)) : Unit = {
@@ -18,7 +18,7 @@ private[model] final class ObjectExpression(items : Seq[(String, Expression)])
       else
         Model.quoteString(key))
 
-    ctx.writeChar(':')
+    ctx.write(':')
     value.writeExpressionCommaSafe(ctx)
   }
 
@@ -40,16 +40,8 @@ private[model] final class ObjectExpression(items : Seq[(String, Expression)])
 
 
   private[model] def writeExpression(ctx : CompactContext) : Unit = {
-    ctx.writeChar('{')
-    val itr = items.iterator
-
-    if (itr.hasNext)
-      writeEntry(ctx, itr.next)
-    while (itr.hasNext) {
-      ctx.writeChar(',')
-      writeEntry(ctx, itr.next)
-    }
-
-    ctx.writeChar('}')
+    ctx.write('{')
+    ctx.sepby[(String, Expression)](items, ',', writeEntry(ctx, _))
+    ctx.write('}')
   }
 }
