@@ -8,7 +8,7 @@ import scala.collection.mutable.ArrayBuffer
  * @param K type of the scope key.
  * @param V type of the scope value.
  */
-final class ScopeBuilder[K, V >: AnyRef]  {
+final class ScopeBuilder[K, V <: AnyRef]  {
 
 
   /** Local (offered) definitions. */

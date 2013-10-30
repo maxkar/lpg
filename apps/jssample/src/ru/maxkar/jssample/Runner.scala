@@ -23,37 +23,19 @@ final object Runner {
 
     printFailsAndExit(s0fails)
 
-    val p1 = new stage1.Processor
+    val s1runs = s0succs.map(x ⇒  exec {
+        out.Premodule.precompile(x.source, x.body)})
 
-    val (s1fails, s1succs) = awaitSplit(
-      s0succs.map(a ⇒ p1.proc _ <**> succHunk(a)))
+    val (s1fails, s1succs) = awaitSplit(s1runs)
 
     printFailsAndExit(s1fails)
-    s1succs.foreach(x ⇒ stage1.Msg.printErrors(
-      System.err, x.source, x.anamnesis))
 
-    val s2result = new stage2.Processor().process(s1succs)
-    printFails2AndExit(s2result.anamnesis)
-
-    val p3 = new stage3.Processor(s2result.mods)
-    val p3result = s1succs.map(p3.process)
-    val (s3fails, s3succ) = awaitSplit(p3result)
-    printFailsAndExit(s3fails)
-
-    System.out.println(s3succ)
+    val msgs1 = s1succs.map(_._2).flatten
+    msgs1.foreach(out.Message.printMsg(System.err, _))
+    if (!msgs1.isEmpty)
+      System.exit(2)
 
     executor.shutdownNow
-  }
-
-
-  def printFails2AndExit(x : stage2.Anamnesis2) : Unit = {
-    if (x.moddecls.isEmpty)
-      return
-    x.moddecls.foreach(md ⇒ {
-        System.err.println("ERROR : " + md.second + " : Module " +
-          md.name.mkString(".") + " is already declared in " + md.first)
-    })
-    System.exit(2)
   }
 
 

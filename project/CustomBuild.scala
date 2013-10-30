@@ -123,7 +123,7 @@ object CustomBuild extends Build {
 
   lazy val be_js = prj("backend/js")
   lazy val jssample = prj("apps/jssample",
-    lispy_base, hunk, lispy_scoping)
+    lispy_base, hunk, lib_scoping_simple, be_js)
 
   lazy val root = Project("root", file("."),
     settings = buildSettings ++ unidocSettings ++ Seq(Tasks.internalName := "root")
