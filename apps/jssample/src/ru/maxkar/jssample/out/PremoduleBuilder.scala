@@ -88,4 +88,8 @@ private[out] final class PremoduleBuilder(host : File) {
     baddecl.toSeq  ++
     defmap.duplicates.map(x ⇒
       DuplicateDeclaration(host, x._1, x._2.declarationHost.offset, x._3.declarationHost.offset))
+
+  /** Ends a building. */
+  def end(e : SExpression[BaseItem]) : Premodule =
+    new Premodule(defmap.scope, defmap.entries, e)
 }

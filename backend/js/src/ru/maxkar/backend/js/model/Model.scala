@@ -11,6 +11,15 @@ import ru.maxkar.backend.js.out.CompactContext
 final object Model {
 
 
+  /** Failure expression. */
+  val failure : LeftValue =
+    new LeftValue {
+      val priority = 0
+      def writeExpression(ctx : CompactContext) : Unit =
+        throw new IllegalStateException("Cannot write failure!")
+    }
+
+
   /** Boolean "true" expression. */
   val exprTrue : Expression = textExpr("true")
 

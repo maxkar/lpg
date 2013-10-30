@@ -54,4 +54,9 @@ final class ScopeBuilder[K, V <: AnyRef]  {
    * the returned scope.
    */
   def scope() : Scope[K, V] = scopeImpl
+
+
+  /** All registered entries. */
+  def entries() : java.util.Map[K, V] =
+    java.util.Collections.unmodifiableMap(defs)
 }

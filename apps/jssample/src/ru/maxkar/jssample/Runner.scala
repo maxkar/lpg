@@ -5,6 +5,15 @@ import java.util.concurrent._
 import ru.maxkar.lispy.Attribute
 import ru.maxkar.hunk.Hunk._
 
+import ru.maxkar.scoping.simple._
+import ru.maxkar.backend.js.model._
+
+import out.ToplevelItem
+
+import scala.collection.JavaConversions._
+
+import java.io._
+
 
 /** Application runner class. */
 final object Runner {
@@ -35,7 +44,78 @@ final object Runner {
     if (!msgs1.isEmpty)
       System.exit(2)
 
+    val globScope = createGlobScope(s1succs.map(_._1))
+
+    val s2runs = s1succs.map(x ⇒  exec {
+        x._1.compile(globScope)
+      })
+
+    val (s2fails, s2succs) = awaitSplit(s2runs)
+
+    printFailsAndExit(s2fails)
+    val msgs2 = s2succs.map(_._2).flatten
+    msgs2.foreach(out.Message.printMsg(System.err, _))
+    if (!msgs2.isEmpty)
+      System.exit(4)
+
+    val resf = collectjs(s2succs.map(_._1))
+
+    try {
+      val f = new BufferedWriter(new FileWriter(args(0)))
+      try {
+        resf.writeToWriter(f)
+      } finally {
+        f.close
+      }
+    } catch {
+      case e : Throwable ⇒
+        System.err.println("Fatal writing error: " + e)
+        e.printStackTrace(System.err)
+    }
+
     executor.shutdownNow
+  }
+
+  /** Collects a js object. */
+  private def collectjs(
+        items : Seq[(Set[String], Seq[(String, FunctionBody)], Seq[Statement])])
+      : JSFile = {
+
+    var a = Set.empty[String]
+    var b = Seq.empty[(String, FunctionBody)]
+    var c = Seq.empty[Statement]
+
+    items.foreach(x ⇒  {
+        a ++= x._1
+        b ++= x._2
+        c ++= x._3
+      })
+
+    Model.file(Seq.empty, a.toSeq, b, c)
+  }
+
+
+  /** Creates a global scope. */
+  private def createGlobScope(scopes : Seq[out.Premodule]) : Scope[String, ToplevelItem] = {
+    var gsb = new ScopeBuilder[String, ToplevelItem]
+
+    for (s ← scopes)
+      for (e ← s.defKeys.entrySet)
+        gsb.offer(e.getKey, e.getValue)
+
+    val errs = gsb.duplicates
+
+    for ((n, i1, i2) ← errs)
+      System.err.println(MessageFormat.err(i2.declarationHost.file,
+        i2.declarationHost.offset, "Duplicate definition of global " + n +
+        ", previous declaration at\n  " +
+        i1.declarationHost.file + ":" +
+        MessageFormat.formatLocation(i1.declarationHost.offset)))
+
+    if (!errs.isEmpty)
+      System.exit(3)
+
+    gsb.scope
   }
 
 
