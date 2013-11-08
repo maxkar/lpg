@@ -27,10 +27,10 @@ private[out] final class PremoduleBuilder(host : File) {
   private def acceptVar(item : SExpression[BaseItem]) : Unit = {
     item match {
       case SLeaf(BaseId(x), _) ⇒ defmap.offer(x, new TIVar(
-        new ModuleHost(host, locOf(item)), None))
+        new ModuleHost(host, locOf(item)), x))
       case SList(Seq(a@SLeaf(BaseId(x), _), iv), _) ⇒
         defmap.offer(x, new TIVar(
-          new ModuleHost(host, locOf(a)), Some(iv)))
+          new ModuleHost(host, locOf(a)), x))
       case _ ⇒
         baddecl += BadDeclaration(host, locOf(item))
     }
@@ -44,7 +44,7 @@ private[out] final class PremoduleBuilder(host : File) {
           SList(args, _),
           tail@_*) ⇒
         defmap.offer(x, new TIFunction(
-          new ModuleHost(host, locOf(hd)), args, tail))
+          new ModuleHost(host, locOf(hd)), x, args, tail))
       case _ ⇒
         baddecl += BadDeclaration(host, pos)
     }
@@ -91,5 +91,5 @@ private[out] final class PremoduleBuilder(host : File) {
 
   /** Ends a building. */
   def end(e : SExpression[BaseItem]) : Premodule =
-    new Premodule(defmap.scope, defmap.entries, e)
+    new Premodule(defmap.scope, defmap.entries, e, host)
 }

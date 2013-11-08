@@ -642,11 +642,13 @@ final object Model {
 
   /** Creates a javascript file. */
   def file(
-      extGlobals : Iterable[String],
-      vars : Seq[String],
-      funcs :Seq[(String, FunctionBody)],
-      inits :Seq[Statement]) : JSFile =
-    new JSFile(extGlobals, vars, funcs, inits)
+      extGlobals : Iterable[String] = Seq.empty,
+      vars : Seq[String] = Seq.empty,
+      pvars : Seq[AnyRef] = Seq.empty,
+      funcs :Seq[(String, FunctionBody)] = Seq.empty,
+      pfuncs :Seq[(AnyRef, FunctionBody)] = Seq.empty,
+      inits : Seq[Statement] = Seq.empty) : JSFile =
+    new JSFile(extGlobals, vars, pvars, funcs, pfuncs, inits)
 
 
 

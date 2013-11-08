@@ -91,7 +91,7 @@ final object Runner {
         c ++= x._3
       })
 
-    Model.file(Seq.empty, a.toSeq, b, c)
+    Model.file(Seq.empty, a.toSeq, Seq.empty, b, Seq.empty, c)
   }
 
 

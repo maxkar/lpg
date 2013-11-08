@@ -20,12 +20,13 @@ import scala.collection.mutable.ArrayBuffer
 final class Premodule(
     val scope : Scope[String, ToplevelItem],
     val defKeys : java.util.Map[String, ToplevelItem],
-    entry : SExpression[BaseItem]) {
+    entry : SExpression[BaseItem],
+    host : File) {
 
   def compile(rs : Scope[String, ToplevelItem])
       : ((Set[String], Seq[(String, FunctionBody)], Seq[Statement]), Seq[Message]) = {
 
-    val comp = new PremoduleCompiler(rs)
+    val comp = new PremoduleCompiler(host, rs)
     comp.acceptTop(entry)
     comp.end
   }

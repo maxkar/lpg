@@ -6,25 +6,37 @@ import ru.maxkar.backend.js.out.CompactContext
 final class JSFile private[model](
     extGlobals : Iterable[String],
     vars : Seq[String],
+    pvars : Seq[AnyRef],
     funcs :Seq[(String, FunctionBody)],
+    pfuncs :Seq[(AnyRef, FunctionBody)],
     inits :Seq[Statement]) {
 
   /** Writes to a context. */
   private def writeTo(ctx : CompactContext) : Unit = {
-    /* Write variables. */
-    if (!vars.isEmpty) {
-      ctx.write("var ")
-      val viter = vars.iterator
-      ctx.write(viter.next)
-      while (viter.hasNext) {
-        ctx.write(',')
-        ctx.write(viter.next)
-      }
-      ctx.write(';')
-    }
-    funcs.foreach(x ⇒ writeFunc(ctx, x._1, x._2))
+    val sc = ctx.sub(pvars ++ pfuncs.map(_._1), Seq.empty)
 
-    inits.foreach(x ⇒  x.writeStatement(ctx))
+    /* Write private variables. */
+    if (!pvars.isEmpty) {
+      sc.write("var ")
+      sc.sepby[AnyRef](pvars, ',', sc.writeVariable)
+      sc.write(';')
+    }
+
+    /* Write global variables. */
+    if (!vars.isEmpty) {
+      sc.write("var ")
+      sc.sepby[String](vars, ',', sc.write)
+      sc.write(';')
+    }
+
+    pfuncs.foreach(x ⇒ {
+        sc.write("function ")
+        sc.writeVariable(x._1)
+        x._2.writeTo(sc)
+      });
+
+    funcs.foreach(x ⇒ writeFunc(sc, x._1, x._2))
+    inits.foreach(x ⇒  x.writeStatement(sc))
   }
 
 

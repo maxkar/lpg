@@ -3,7 +3,7 @@ package ru.maxkar.backend.js.model
 import ru.maxkar.backend.js.out.CompactContext
 
 /** Function body definition. */
-final class FunctionBody(
+final case class FunctionBody(
       args : Seq[AnyRef],
       vars : Seq[AnyRef],
       funcs : Seq[(AnyRef, FunctionBody)],
