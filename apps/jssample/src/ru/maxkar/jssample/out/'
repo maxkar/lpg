@@ -1,0 +1,21 @@
+package ru.maxkar.jssample.out
+
+import ru.maxkar.jssample.ns._
+import ru.maxkar.lispy._
+import ru.maxkar.lispy.parser.TextPosition
+import ru.maxkar.lispy.parser.Input
+
+import ru.maxkar.backend.js.model._
+import ru.maxkar.backend.js.model.Model._
+
+import ru.maxkar.scoping.simple._
+
+import java.io.File
+
+import scala.collection.mutable.ArrayBuffer
+
+
+/** Simple statement block. */
+final class SimpleBlock extends BlockCompiler private(
+    stmts : Seq[SExpression[BaseItem]]) {
+}
