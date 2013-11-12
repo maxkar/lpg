@@ -3,13 +3,16 @@ package ru.maxkar.jssample
 import java.util.concurrent._
 
 import ru.maxkar.lispy.Attribute
+
+import ru.maxkar.jssample.msg._
+
 import ru.maxkar.hunk.Hunk._
+import ru.maxkar.hunk.Hunk
 
 import ru.maxkar.scoping.simple._
 import ru.maxkar.backend.js.model._
 
-import out.ToplevelItem
-
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConversions._
 
 import java.io._
@@ -18,7 +21,7 @@ import java.io._
 /** Application runner class. */
 final object Runner {
 
-  def main(args : Array[String]) {
+  def main(args : Array[String]) : Unit = {
     if (args.length < 2)
       printUsageAndExit();
 
@@ -26,39 +29,24 @@ final object Runner {
       Executors.newFixedThreadPool(
         Runtime.getRuntime().availableProcessors)
 
-    val items = (new stage0.Processor).process(args.tail)
+    val boot = (new stage0.Processor).process(args.tail)
 
-    val (s0fails, s0succs) = awaitSplit(items)
-
-    printFailsAndExit(s0fails)
+    val s0succs = mowait(boot)
 
     val s1runs = s0succs.map(x ⇒  exec {
-        out.Premodule.precompile(x.source, x.body)})
+        (x._1, out.Premodule.precompile(x._1, x._2.source, x._2.body))})
 
-    val (s1fails, s1succs) = awaitSplit(s1runs)
+    val s1succs = mwait(s1runs)
 
-    printFailsAndExit(s1fails)
-
-    val msgs1 = s1succs.map(_._2).flatten
-    msgs1.foreach(out.Message.printMsg(System.err, _))
-    if (!msgs1.isEmpty)
-      System.exit(2)
-
-    val globScope = createGlobScope(s1succs.map(_._1))
+    val globScope = createGlobScope(s1succs.map(_._2))
 
     val s2runs = s1succs.map(x ⇒  exec {
-        x._1.compile(globScope)
+        (x._1, x._2.compile(globScope, x._1))
       })
 
-    val (s2fails, s2succs) = awaitSplit(s2runs)
+    val s2succs = mwait(s2runs)
 
-    printFailsAndExit(s2fails)
-    val msgs2 = s2succs.map(_._2).flatten
-    msgs2.foreach(out.Message.printMsg(System.err, _))
-    if (!msgs2.isEmpty)
-      System.exit(4)
-
-    val resf = collectjs(s2succs.map(_._1))
+    val resf = collectjs(s2succs.map(_._2))
 
     try {
       val f = new BufferedWriter(new FileWriter(args(0)))
@@ -75,6 +63,65 @@ final object Runner {
 
     executor.shutdownNow
   }
+
+
+  /**
+   * Awaits items. If there is any error, then prints that error
+   * and exit. Otherwise returns list of results.
+   */
+  private def ewait[T](items : Seq[Hunk[T]]) : Seq[T] = {
+    val (fails, succs) = awaitSplit(items)
+
+    fails.foreach(printFail)
+    if (!fails.isEmpty)
+      System.exit(2)
+
+    succs
+  }
+
+
+  /** Awaits items with a possible failure. Unwraps options.
+   * Stops when there is any error message or */
+  private def mowait[T](items : Seq[Hunk[(CollectorTrace, Option[T])]]) : Seq[(CollectorTrace, T)] = {
+
+    val snds = ewait(items)
+    val errs = new ArrayBuffer[Message]
+    val res = new ArrayBuffer[(CollectorTrace, T)]
+
+    for (i ← snds) {
+      val ierrs = i._1.errors
+      if (!ierrs.isEmpty)
+        errs ++= ierrs
+      else
+        i._2 match {
+          case Some(x) ⇒ res += ((i._1, x))
+          case None ⇒
+            System.err.println("FATAL: Internal error: No result and no trace!")
+            System.exit(312)
+        }
+    }
+
+    errs.foreach(Message.printDefault(System.err, _))
+    if (!errs.isEmpty)
+      System.exit(2)
+
+    res
+  }
+
+
+  /** Awaits items with a guaranteed result.
+   * Stops when there is any error message or */
+  private def mwait[T](items : Seq[Hunk[(CollectorTrace, T)]]) : Seq[(CollectorTrace, T)] = {
+
+    val snds = ewait(items)
+    val errs = snds.flatMap(x ⇒ x._1.errors)
+    errs.foreach(Message.printDefault(System.err, _))
+    if (!errs.isEmpty)
+      System.exit(2)
+
+    snds
+  }
+
 
   /** Collects a js object. */
   private def collectjs(
@@ -96,21 +143,21 @@ final object Runner {
 
 
   /** Creates a global scope. */
-  private def createGlobScope(scopes : Seq[out.Premodule]) : Scope[String, ToplevelItem] = {
-    var gsb = new ScopeBuilder[String, ToplevelItem]
+  private def createGlobScope(scopes : Seq[out.Premodule]) : Scope[String, out.Symbol] = {
+    var gsb = ScopeBuilder.collecting[String, out.Symbol]
 
     for (s ← scopes)
-      for (e ← s.defKeys.entrySet)
-        gsb.offer(e.getKey, e.getValue)
+      for (e ← s.globals)
+        gsb.offer(e._1, e._2)
 
     val errs = gsb.duplicates
 
     for ((n, i1, i2) ← errs)
-      System.err.println(MessageFormat.err(i2.declarationHost.file,
-        i2.declarationHost.offset, "Duplicate definition of global " + n +
+      System.err.println(MessageFormat.err(i2.declaration.file,
+        i2.declaration.offset, "Duplicate definition of global " + n +
         ", previous declaration at\n  " +
-        i1.declarationHost.file + ":" +
-        MessageFormat.formatLocation(i1.declarationHost.offset)))
+        i1.declaration.file + ":" +
+        MessageFormat.formatLocation(i1.declaration.offset)))
 
     if (!errs.isEmpty)
       System.exit(3)
@@ -132,12 +179,8 @@ final object Runner {
 
   /** Prints one exception. */
   private def printFail(f : Throwable) : Unit = {
-    f match {
-      case x : stage0.Failure ⇒ stage0.Msg.printException(System.err, x)
-      case _ ⇒
-        System.err.println("ERROR/FATAL: Nonspecific exception " + f.toString)
-        f.printStackTrace
-    }
+      System.err.println("ERROR/FATAL: Nonspecific exception " + f.toString)
+      f.printStackTrace(System.err)
   }
 
 

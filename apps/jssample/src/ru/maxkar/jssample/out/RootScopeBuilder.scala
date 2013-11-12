@@ -25,34 +25,35 @@ final class RootScopeBuilder(host : File) {
 
 
   /** All arguments. */
-  private var args = new ArrayBuffer[ToplevelItem]
+  private var args = new ArrayBuffer[Symbol]
   /** All locals. */
-  private val locals = new ArrayBuffer[ToplevelItem]
+  private val locals = new ArrayBuffer[Symbol]
   /** All labels. */
-  private val labels = new ArrayBuffer[ToplevelItem]
+  private val labels = new ArrayBuffer[Symbol]
   /** All local functions. */
   private val funcs = new ArrayBuffer[
-    (ToplevelItem, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])]
+    (Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])]
+
 
   /** Creates a new argument variable for the given host. */
-  def mkArg(item : SExpression[BaseItem]) : ToplevelItem = {
-    val res = new TILvar(new ModuleHost(host, locOf(item)))
+  def mkArg(item : SExpression[BaseItem]) : Symbol = {
+    val res = new LocalSymbol(new ModuleHost(host, locOf(item)))
     args += res
     res
   }
 
 
   /** Creates a new local variable for the given host. */
-  def mkVar(item : SExpression[BaseItem]) : ToplevelItem = {
-    val res = new TILvar(new ModuleHost(host, locOf(item)))
+  def mkVar(item : SExpression[BaseItem]) : Symbol = {
+    val res = new LocalSymbol(new ModuleHost(host, locOf(item)))
     locals += res
     res
   }
 
 
   /** Creates a new local label. */
-  def mkLabel(item : SExpression[BaseItem]) : ToplevelItem = {
-    val res = new TILvar(new ModuleHost(host, locOf(item)))
+  def mkLabel(item : SExpression[BaseItem]) : Symbol = {
+    val res = new LocalSymbol(new ModuleHost(host, locOf(item)))
     labels += res
     res
   }
@@ -63,15 +64,15 @@ final class RootScopeBuilder(host : File) {
         defn : SExpression[BaseItem],
         args : Seq[SExpression[BaseItem]],
         body : Seq[SExpression[BaseItem]])
-      : ToplevelItem = {
-    val res = new TILvar(new ModuleHost(host, locOf(defn)))
+      : Symbol = {
+    val res = new LocalSymbol(new ModuleHost(host, locOf(defn)))
     funcs += ((res, args, body))
     res
   }
 
-  def getArgs() : Seq[ToplevelItem] = args
-  def getVars() : Seq[ToplevelItem] = locals
-  def getLabels() : Seq[ToplevelItem] = labels
-  def getFuncs() : Seq[(ToplevelItem, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])] =
+  def getArgs() : Seq[Symbol] = args
+  def getVars() : Seq[Symbol] = locals
+  def getLabels() : Seq[Symbol] = labels
+  def getFuncs() : Seq[(Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])] =
     funcs
 }

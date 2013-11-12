@@ -1,8 +1,12 @@
 package ru.maxkar.jssample.out
 
+import ru.maxkar.jssample.msg.HostTrace
+
 import ru.maxkar.jssample.ns._
 import ru.maxkar.lispy._
 import ru.maxkar.lispy.parser.TextPosition
+
+import ru.maxkar.jssample.msg.HostTrace
 
 import ru.maxkar.backend.js.model._
 
@@ -18,17 +22,33 @@ import scala.collection.mutable.ArrayBuffer
  * providing an "external context"
  */
 final class Premodule(
-    val scope : Scope[String, ToplevelItem],
-    val defKeys : java.util.Map[String, ToplevelItem],
-    entry : SExpression[BaseItem],
-    host : File) {
+    val globals : Seq[(String, GlobalSymbol)],
+    localScope : Scope[String, Symbol],
+    varInitializers : Seq[(Symbol, SExpression[BaseItem])],
+    globalFunctions : Seq[(String, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])],
+    globalVars : Seq[String],
+    module : File) {
 
-  def compile(rs : Scope[String, ToplevelItem])
-      : ((Set[String], Seq[(String, FunctionBody)], Seq[Statement]), Seq[Message]) = {
+  def compile(rs : Scope[String, Symbol], trace : HostTrace)
+      : ((Set[String], Seq[(String, FunctionBody)], Seq[Statement])) = {
 
-    val comp = new PremoduleCompiler(host, rs)
-    comp.acceptTop(entry)
-    comp.end
+    val modScope = Scope.chain(rs, localScope)
+    val mc = new ExprComp(module, trace, modScope)
+
+    val stmts = varInitializers.map(x ⇒
+      Model.assign(x._1.resolve.asInstanceOf[LeftValue], mc.compile(x._2)))
+
+    val globIdMap = globals.map(x ⇒ (x._2, x._1)).toMap[Symbol, String]
+    val globIds = new ArrayBuffer[String]
+    varInitializers.foreach(x ⇒ globIdMap.get(x._1) match {
+        case None ⇒  ()
+        case Some(x) ⇒  globIds += x
+      })
+
+    (globalVars.toSet,
+      globalFunctions.map(x ⇒
+        (x._1, FuncComp.compFunction(module, modScope, x._2, x._3, trace))),
+      stmts)
   }
 }
 
@@ -39,13 +59,9 @@ final object Premodule {
 
   /** Precompiles items into a new premodule. Returns a new
    * module, list of duplicate declarations and list of bad declarations. */
-  def precompile(host : File, elts : SExpression[BaseItem]) :
-      (Premodule, Seq[Message]) = {
-
-    val pmb = new PremoduleBuilder(host)
-    pmb.acceptTop(elts)
-
-
-    (pmb.end(elts), pmb.messages)
+  def precompile(trace : HostTrace, module : File, elts : SList[BaseItem]) : Premodule = {
+    val pmb = new PremoduleBuilder(trace, module)
+    elts.items.foreach(pmb.acceptDef)
+    pmb.end(elts)
   }
 }

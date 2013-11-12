@@ -9,8 +9,8 @@ import ru.maxkar.backend.js.model._
 import ru.maxkar.backend.js.model.Model._
 
 import ru.maxkar.scoping.simple._
+import ru.maxkar.jssample.msg.HostTrace
 
-import java.io.File
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
@@ -24,37 +24,32 @@ private[out] object FuncComp {
 
   /** Compiles a function body. */
   def compFunction(
-        host : File,
-        baddecl : ArrayBuffer[Message],
-        scope : Scope[String, ToplevelItem],
+        host : java.io.File,
+        scope : Scope[String, Symbol],
         args : Seq[SExpression[BaseItem]],
-        tl : Seq[SExpression[BaseItem]]) :  FunctionBody = {
+        tl : Seq[SExpression[BaseItem]],
+        trace : HostTrace) :  FunctionBody = {
+
 
     val root = new RootScopeBuilder(host)
-    val varb = new ScopeBuilder[String, ToplevelItem]
-    val labb = new ScopeBuilder[String, ToplevelItem]
+    val lcb = new LocalContextBuilder(trace, host, root)
 
     args.foreach(x ⇒  x match {
-        case SLeaf(BaseId(id), _) ⇒ varb.offer(id, root.mkArg(x))
-        case _ ⇒  baddecl += BadArgument(host, locOf(x))
+        case SLeaf(BaseId(id), _) ⇒ lcb.mkArg(id, x)
+        case _ ⇒  trace.mailformedDeclaration(x)
       })
 
-    val stmtb = SimpleBlock.joinTo(host, varb, labb, root,
-      baddecl, tl)
+    val stmtb = SimpleBlock.joinTo(lcb, tl)
 
-    baddecl ++= varb.duplicates.map(x ⇒
-      new DuplicateDeclaration(host, x._1, x._2.declarationHost.offset, x._3.declarationHost.offset))
-    baddecl ++= labb.duplicates.map(x ⇒
-      new DuplicateDeclaration(host, x._1, x._2.declarationHost.offset, x._3.declarationHost.offset))
-
-    val vs = Scope.chain(scope, varb.scope)
+    val locCtx = lcb.end(scope)
+    val vs = locCtx.variables
 
     new FunctionBody(
       root.getArgs,
       root.getVars,
       root.getFuncs.map(x ⇒  (x._1,
-        compFunction(host, baddecl, vs, x._2, x._3))),
+        compFunction(host, vs, x._2, x._3, trace))),
       root.getLabels,
-      stmtb.compileToSeq(vs, labb.scope, baddecl))
+      stmtb.compileToSeq(locCtx))
   }
 }

@@ -1,5 +1,7 @@
 package ru.maxkar.jssample.out
 
+import ru.maxkar.jssample.msg.HostTrace
+
 import ru.maxkar.jssample.ns._
 import ru.maxkar.lispy._
 import ru.maxkar.lispy.parser.TextPosition
@@ -19,41 +21,41 @@ import scala.collection.JavaConversions._
 
 
 /** Expression compiler closure. */
-private class ExprComp(
-    host : File,
-    baddecl : ArrayBuffer[Message],
-    scope : Scope[String, ToplevelItem]) {
+private[out] class ExprComp(
+    host : java.io.File,
+    trace : HostTrace,
+    scope : Scope[String, Symbol]) {
 
   import ExprComp._
   import CompilerUtil._
 
 
   /** Resolves an identifier. */
-  private def resolveId(id : String, loc : TextPosition) : Expression = {
+  private def resolveId(id : String, item : SExpression[BaseItem]) : Expression = {
     val  guess = scope.lookup(id)
     if (guess.isEmpty) {
-      baddecl += UndeclaredIdentifier(host, loc)
+      trace.undeclaredIdentifier(item)
       Model.failure
     } else if (guess.size > 1) {
-      baddecl += AmbigiousIdentifier(host, loc,
-          guess.toSeq.map(_.declarationHost))
+      trace.ambigiousIdentifier(item, guess.toSeq.map(_.declaration))
       Model.failure
     } else
-      guess.head.resolve(scope)
+      guess.head.resolve
   }
 
 
+
+  /** Compiles an expression. */
   def compile(item : SExpression[BaseItem]) : Expression = {
     item match {
       case SLeaf(BaseInteger(x), _) ⇒ literal(x)
       case SLeaf(BaseFloating(x, y), _) ⇒ literal(x, y)
       case SLeaf(BaseString(x), _) ⇒ literal(x)
-      case SLeaf(BaseId(x), _) ⇒
-        resolveId(x, locOf(item))
+      case SLeaf(BaseId(x), _) ⇒ resolveId(x, item)
       case SList(Seq(SLeaf(BaseId("fun"), _),
           SList(args, _),
           body@_*), _) ⇒
-        val fb = FuncComp.compFunction(host, baddecl, scope, args, body)
+        val fb = FuncComp.compFunction(host, scope, args, body, trace)
         anonfun(fb.args, fb.vars, fb.funcs, fb.labels, fb.stmt)
       case SList(Seq(SLeaf(BaseId("if"), _), c, l, r), _) ⇒
         cond(compile(c), compile(l), compile(r))
@@ -62,7 +64,7 @@ private class ExprComp(
       case SList(Seq(SLeaf(BaseId(x), _), a, b), _) if BINARY_ASSIGN.contains(x) ⇒
         val lv = compile(a)
         if (!lv.isInstanceOf[LeftValue]) {
-          baddecl += UnassignableExpression(host, locOf(item))
+          trace.unassignableExpression(item)
           Model.failure
         } else
           BINARY_ASSIGN(x)(lv.asInstanceOf[LeftValue], compile(b))
@@ -71,35 +73,24 @@ private class ExprComp(
       case SList(Seq(SLeaf(BaseId(x), _), a), _) if UNARY_ASSIGN.contains(x) ⇒
         val lv = compile(a)
         if (!lv.isInstanceOf[LeftValue]) {
-          baddecl += UnassignableExpression(host, locOf(item))
+          trace.unassignableExpression(item)
           Model.failure
         } else
           UNARY_ASSIGN(x)(lv.asInstanceOf[LeftValue])
       case SList(Seq(hd, tl@_*), _) ⇒
         val x = compile(hd)
         if (!x.isInstanceOf[NonprimitiveExpression]) {
-          baddecl += UncallableExpression(host, locOf(item))
+          trace.uncallableExpression(item)
           tl.foreach(compile)
           Model.failure
         }
         else
           call(x.asInstanceOf[NonprimitiveExpression], tl.map(compile) :_*)
       case _ ⇒
-        baddecl += BadExpression(host, locOf(item))
+        trace.uncallableExpression(item)
         Model.failure
     }
   }
-}
-
-
-/** Expression block compiler. */
-private class ExprBlock(host : File, expr : SExpression[BaseItem]) extends BlockCompiler {
-  def compileStatements(
-      vars : Scope[String, ToplevelItem],
-      labels : Scope[String, ToplevelItem],
-      baddecl : ArrayBuffer[Message],
-      cb : Statement ⇒  Unit) : Unit =
-    cb(ExprComp.compileExpr(host, baddecl, vars, expr))
 }
 
 
@@ -169,16 +160,4 @@ private[out] object ExprComp {
       "_--" → Model.postfixDec,
       "delete" → Model.delete
     )
-
-
-  def compileExpr(host : File,
-        baddecl : ArrayBuffer[Message],
-        scope : Scope[String, ToplevelItem],
-        item : SExpression[BaseItem]) : Expression = {
-    new ExprComp(host, baddecl, scope).compile(item)
-  }
-
-
-  def compileBlock(host : File, item : SExpression[BaseItem]) : BlockCompiler =
-    new ExprBlock(host, item)
 }

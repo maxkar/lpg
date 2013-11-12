@@ -18,108 +18,77 @@ import scala.collection.mutable.ArrayBuffer
 
 /** Sequence block. */
 private final class SeqBlock (stmts : Seq[BlockCompiler]) extends BlockCompiler {
-  def compileStatements(
-      topvars : Scope[String, ToplevelItem],
-      toplabels : Scope[String, ToplevelItem],
-      baddecl : ArrayBuffer[Message],
-      cb : Statement ⇒  Unit) : Unit = {
-    stmts.foreach(x ⇒  x.compileStatements(topvars, toplabels, baddecl, cb))
-  }
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
+    stmts.foreach(x ⇒  x.compileStatements(ctx, cb))
 }
 
 
 /** Subscope block. */
 private final class SubScopeBlock (
-      vars : Scope[String, ToplevelItem],
-      labels : Scope[String, ToplevelItem],
+      base : LocalContextBuilder,
       peer : BlockCompiler)
     extends BlockCompiler {
 
-  def compileStatements(
-      topvars : Scope[String, ToplevelItem],
-      toplabels : Scope[String, ToplevelItem],
-      baddecl : ArrayBuffer[Message],
-      cb : Statement ⇒  Unit) : Unit =
-    peer.compileStatements(chain(topvars, vars), chain(toplabels, labels), baddecl, cb)
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
+    peer.compileStatements(base.endRelated(ctx), cb)
 }
 
 
+/** Assignment block. */
 private final class AssingVarBlock(
-    host : File, varble : String, expr : SExpression[BaseItem])
+    variable : Symbol, expr : SExpression[BaseItem])
     extends BlockCompiler {
-  def compileStatements(
-      vars : Scope[String, ToplevelItem],
-      labels : Scope[String, ToplevelItem],
-      baddecl : ArrayBuffer[Message],
-      cb : Statement ⇒  Unit) : Unit = {
-
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
     cb(assign(
-      vars.lookup(varble).head.resolve(vars).asInstanceOf[LeftValue],
-      ExprComp.compileExpr(host, baddecl, vars, expr)))
-  }
+      variable.resolve.asInstanceOf[LeftValue],
+      ctx.exprs.compile(expr)))
 }
 
 
-private final class RetBlock(
-    host : File, expr : SExpression[BaseItem])
+private final class RetBlock(expr : SExpression[BaseItem])
     extends BlockCompiler {
 
-  def compileStatements(
-      vars : Scope[String, ToplevelItem],
-      labels : Scope[String, ToplevelItem],
-      baddecl : ArrayBuffer[Message],
-      cb : Statement ⇒  Unit) : Unit = {
-    cb(returns(ExprComp.compileExpr(host, baddecl, vars, expr)))
-  }
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
+    cb(returns(ctx.exprs.compile(expr)))
 }
 
 
 private final class WhenBlock(
-    host : File, cond : SExpression[BaseItem], tl : BlockCompiler)
+    cond : SExpression[BaseItem], tl : BlockCompiler)
     extends BlockCompiler {
 
-  def compileStatements(
-      vars : Scope[String, ToplevelItem],
-      labels : Scope[String, ToplevelItem],
-      baddecl : ArrayBuffer[Message],
-      cb : Statement ⇒  Unit) : Unit = {
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
     cb(when(
-      ExprComp.compileExpr(host, baddecl, vars, cond),
-      tl.compileToSeq(vars, labels, baddecl)))
-  }
+      ctx.exprs.compile(cond), tl.compileToSeq(ctx)))
 }
 
 
 private final class WhileBlock(
-    host : File, cond : SExpression[BaseItem], tl : BlockCompiler)
+    cond : SExpression[BaseItem], tl : BlockCompiler)
     extends BlockCompiler {
 
-  def compileStatements(
-      vars : Scope[String, ToplevelItem],
-      labels : Scope[String, ToplevelItem],
-      baddecl : ArrayBuffer[Message],
-      cb : Statement ⇒  Unit) : Unit = {
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
     cb(whiles(
-      ExprComp.compileExpr(host, baddecl, vars, cond),
-      tl.compileToSeq(vars, labels, baddecl)))
-  }
+      ctx.exprs.compile(cond), tl.compileToSeq(ctx)))
 }
 
 
 private final class IfBlock(
-    host : File, cond : SExpression[BaseItem], tl1 : BlockCompiler, tl2 : BlockCompiler)
+    cond : SExpression[BaseItem], tl1 : BlockCompiler, tl2 : BlockCompiler)
     extends BlockCompiler {
 
-  def compileStatements(
-      vars : Scope[String, ToplevelItem],
-      labels : Scope[String, ToplevelItem],
-      baddecl : ArrayBuffer[Message],
-      cb : Statement ⇒  Unit) : Unit = {
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
     cb(doCond(
-      ExprComp.compileExpr(host, baddecl, vars, cond),
-      tl1.compileToSeq(vars, labels, baddecl),
-      tl2.compileToSeq(vars, labels, baddecl)))
-  }
+      ctx.exprs.compile(cond),
+      tl1.compileToSeq(ctx),
+      tl2.compileToSeq(ctx)))
+}
+
+
+/** Expression block compiler. */
+private class ExprBlock(expr : SExpression[BaseItem]) extends BlockCompiler {
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
+    cb(ctx.exprs.compile(expr))
 }
 
 
@@ -132,11 +101,7 @@ object SimpleBlock {
    * it's own namespace.
    */
   def joinTo(
-        host : File,
-        vars : ScopeBuilder[String, ToplevelItem],
-        labels : ScopeBuilder[String, ToplevelItem],
-        root : RootScopeBuilder,
-        baddecl : ArrayBuffer[Message],
+        ctx : LocalContextBuilder,
         stmts : Seq[SExpression[BaseItem]]) : BlockCompiler = {
 
     val blocks = new ArrayBuffer[BlockCompiler]
@@ -144,29 +109,26 @@ object SimpleBlock {
     stmts foreach (x ⇒  x match {
         case SList(Seq(SLeaf(BaseId("var"), _), tl@_*), _) ⇒
           tl.foreach(dcl ⇒ dcl match {
-              case SLeaf(BaseId(x), _) ⇒
-                vars.offer(x, root.mkVar(dcl))
-              case SList(Seq(a@SLeaf(BaseId(x), _), expr), _) ⇒
-                vars.offer(x, root.mkVar(a))
-                blocks += new AssingVarBlock(host, x, expr)
+              case SLeaf(BaseId(id), _) ⇒ ctx.mkVar(id, x)
+              case SList(Seq(a@SLeaf(BaseId(id), _), expr), _) ⇒
+                val ide = ctx.mkVar(id, a)
+                blocks += new AssingVarBlock(ide, expr)
               case _ ⇒
-                baddecl += BadDeclaration(host, locOf(dcl))
+                ctx.trace.mailformedDeclaration(dcl)
             })
         case SList(Seq(SLeaf(BaseId("def"), _), SLeaf(BaseId(fname), _), SList(args, _), tl@_*), _) ⇒
-          vars.offer(fname, root.mkFunction(x, args, tl))
+          ctx.mkFunction(fname, x, args, tl)
         case SList(Seq(SLeaf(BaseId("ret"), _), expr), _) ⇒
-          blocks += new RetBlock(host, expr)
+          blocks += new RetBlock(expr)
         case SList(Seq(SLeaf(BaseId("do"), _), tl@_*), _) ⇒
-          blocks += sub(host, root, baddecl, tl)
+          blocks += sub(ctx, tl)
         case SList(Seq(SLeaf(BaseId("when"), _), cond, tl@_*), _) ⇒
-          blocks += new WhenBlock(host, cond, sub(host, root, baddecl, tl))
+          blocks += new WhenBlock(cond, sub(ctx, tl))
         case SList(Seq(SLeaf(BaseId("while"), _), cond, tl@_*), _) ⇒
-          blocks += new WhileBlock(host, cond, sub(host, root, baddecl, tl))
+          blocks += new WhileBlock(cond, sub(ctx, tl))
         case SList(Seq(SLeaf(BaseId("if"), _), cond, SList(tl1, _), SList(tl2, _)), _) ⇒
-          blocks += new IfBlock(host, cond,
-            sub(host, root, baddecl, tl1),
-            sub(host, root, baddecl, tl2))
-        case _ ⇒ blocks += ExprComp.compileBlock(host, x)
+          blocks += new IfBlock(cond, sub(ctx, tl1), sub(ctx, tl2))
+        case _ ⇒ blocks += new ExprBlock(x)
       })
 
     new SeqBlock(blocks)
@@ -175,19 +137,10 @@ object SimpleBlock {
 
 
   /** Creates a subblock with a local scope. */
-  def sub(host : File, root : RootScopeBuilder,
-        baddecl : ArrayBuffer[Message],
-        stmts : Seq[SExpression[BaseItem]]) : BlockCompiler = {
-
-    val varb = new ScopeBuilder[String, ToplevelItem]
-    val labb = new ScopeBuilder[String, ToplevelItem]
-    val peer = joinTo(host, varb, labb, root, baddecl, stmts)
-
-    baddecl ++= varb.duplicates.map(x ⇒
-      new DuplicateDeclaration(host, x._1, x._2.declarationHost.offset, x._3.declarationHost.offset))
-    baddecl ++= labb.duplicates.map(x ⇒
-      new DuplicateDeclaration(host, x._1, x._2.declarationHost.offset, x._3.declarationHost.offset))
-
-    new SubScopeBlock(varb.scope, labb.scope, peer)
+  def sub(ctx : LocalContextBuilder, stmts : Seq[SExpression[BaseItem]])
+      : BlockCompiler = {
+    val sb = ctx.newSubBuilder
+    val peer = joinTo(sb, stmts)
+    new SubScopeBlock(sb, peer)
   }
 }

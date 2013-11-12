@@ -1,12 +1,11 @@
 package ru.maxkar.jssample.stage0
 
+import ru.maxkar.jssample.msg.CollectorTrace
+
 import ru.maxkar.jssample._
 
 import ru.maxkar.hunk._
 import ru.maxkar.hunk.Hunk._
-
-import ru.maxkar.lispy._
-import ru.maxkar.lispy.parser._
 
 import java.io._
 
@@ -19,47 +18,20 @@ final class Processor(implicit executor : Executor) {
 
 
   /** Result type. */
-  private type Res = Item
-
-
-
-  /** Inputs a file content. */
-  private def getContent(input : File) : Hunk[Array[Char]] = exec {
-    try {
-      Files.fileAsCharsEnc(input, "UTF-8")
-    } catch {
-      case e : IOException ⇒
-        throw new ReadFailure(input, e)
-    }
-  }
-
-
-
-  /** Parses attributes. */
-  private def parseAttr(x : Input) : Attributes = {
-    Attributes.empty
-  }
-
-
-
-  /** Parses a file content. */
-  private def parseContent(file : File)(content : Array[Char]) : Hunk[SList[BaseItem]] = calc {
-    val input = Input.fromCharArray(content)
-    try {
-      SParser.parseSFile(parseAttr)(input)
-    } catch {
-      case e : SFormatException ⇒
-        throw new SFormatFailure(file, e)
-    }
-  }
-
+  private type Res = (CollectorTrace, Option[Item])
 
 
   /** Processes one file. */
   private def processFile(input : File, path : Seq[String]) : Hunk[Res] = {
-    val content = getContent(input)
-    val body = parseContent(input) _ <**> content
-    Item.curried(input)(path) <*> body
+    val msg = new CollectorTrace(input)
+    val chars = HostLoader.read(input, msg)
+
+    exec {
+      (msg, chars.flatMap(c ⇒
+        HostLoader.parse(c, msg).map(sex ⇒
+          Item(input, path, sex))))
+
+    }
   }
 
 
@@ -69,13 +41,14 @@ final class Processor(implicit executor : Executor) {
     val res = new ArrayBuffer[Hunk[Res]]
 
     def acceptFile(f : File, path : Seq[String]) : Unit = {
+      if (!f.getName.endsWith(".lpg"))
+        return
       if (path.isEmpty)
         return
       val left = path.last
       val modname = left.substring(0, left.length - 4)
       val rpath = path.dropRight(1) :+ modname
-      if (f.getName.endsWith(".lpg"))
-        res += processFile(f, rpath)
+      res += processFile(f, rpath)
     }
 
     inputs.foreach(i ⇒

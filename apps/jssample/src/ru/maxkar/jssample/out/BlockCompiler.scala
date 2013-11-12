@@ -10,21 +10,13 @@ trait BlockCompiler {
 
 
   /** Compiles statements and invokes a callback on the result. */
-  def compileStatements(
-      vars : Scope[String, ToplevelItem],
-      labels : Scope[String, ToplevelItem],
-      baddecl : ArrayBuffer[Message],
-      cb : Statement ⇒  Unit) : Unit
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit
 
 
   /** Compiles this block into a sequence of statements. */
-  def compileToSeq(
-        vars : Scope[String, ToplevelItem],
-        labels : Scope[String, ToplevelItem],
-        baddecl : ArrayBuffer[Message]):
-      Seq[Statement] = {
+  def compileToSeq(ctx : LocalContext): Seq[Statement] = {
     val res = new ArrayBuffer[Statement]
-    compileStatements(vars, labels, baddecl, res.+=)
+    compileStatements(ctx, res.+=)
     res
   }
 }

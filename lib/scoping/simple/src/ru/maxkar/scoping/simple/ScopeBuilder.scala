@@ -8,15 +8,9 @@ import scala.collection.mutable.ArrayBuffer
  * @param K type of the scope key.
  * @param V type of the scope value.
  */
-final class ScopeBuilder[K, V <: AnyRef]  {
-
-
+abstract class ScopeBuilder[K, V <: AnyRef] private[simple]()  {
   /** Local (offered) definitions. */
   private val defs = new java.util.HashMap[K, V]
-
-
-  /** Duplicate definitions. Key, first and next occurences. */
-  private val dupes = new ArrayBuffer[(K, V, V)]
 
 
   /** Scope implementation. */
@@ -41,12 +35,11 @@ final class ScopeBuilder[K, V <: AnyRef]  {
     if (prev == null || prev == item)
       return
     defs.put(key, prev)
-    dupes += ((key, prev, item))
+    onDupe(key, prev, item)
   }
 
-
-  /** Returns all found duplicates. */
-  def duplicates() : Seq[(K, V, V)] = dupes
+  /** Handles a duplicate definition. */
+  private[simple] def onDupe(key : K, prev : V, next : V) : Unit
 
 
   /** Returns scope bound to this bulider. Adding new items
@@ -59,4 +52,18 @@ final class ScopeBuilder[K, V <: AnyRef]  {
   /** All registered entries. */
   def entries() : java.util.Map[K, V] =
     java.util.Collections.unmodifiableMap(defs)
+}
+
+
+/** Scope builder factoriy. */
+final object ScopeBuilder {
+  /** Creates a new scope builder which invokes callback on duplicate entries. */
+  def withCallback[K, V <: AnyRef](
+      cb : (K, V, V) ⇒ Unit) : ScopeBuilder[K, V] =
+    new CallbackScopeBuilder(cb)
+
+
+  /** Creates a new scope builder which collects all errors into a list. */
+  def collecting[K, V <: AnyRef]() : CollectingScopeBuilder[K, V] =
+    new CollectingScopeBuilder()
 }
