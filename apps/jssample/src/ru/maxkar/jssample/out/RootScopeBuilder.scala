@@ -37,7 +37,7 @@ final class RootScopeBuilder(host : File) {
 
   /** Creates a new argument variable for the given host. */
   def mkArg(item : SExpression[BaseItem]) : Symbol = {
-    val res = new LocalSymbol(new ModuleHost(host, locOf(item)))
+    val res = new Symbol(new ModuleHost(host, locOf(item)))
     args += res
     res
   }
@@ -45,7 +45,7 @@ final class RootScopeBuilder(host : File) {
 
   /** Creates a new local variable for the given host. */
   def mkVar(item : SExpression[BaseItem]) : Symbol = {
-    val res = new LocalSymbol(new ModuleHost(host, locOf(item)))
+    val res = new Symbol(new ModuleHost(host, locOf(item)))
     locals += res
     res
   }
@@ -53,7 +53,7 @@ final class RootScopeBuilder(host : File) {
 
   /** Creates a new local label. */
   def mkLabel(item : SExpression[BaseItem]) : Symbol = {
-    val res = new LocalSymbol(new ModuleHost(host, locOf(item)))
+    val res = new Symbol(new ModuleHost(host, locOf(item)))
     labels += res
     res
   }
@@ -65,7 +65,7 @@ final class RootScopeBuilder(host : File) {
         args : Seq[SExpression[BaseItem]],
         body : Seq[SExpression[BaseItem]])
       : Symbol = {
-    val res = new LocalSymbol(new ModuleHost(host, locOf(defn)))
+    val res = new Symbol(new ModuleHost(host, locOf(defn)))
     funcs += ((res, args, body))
     res
   }

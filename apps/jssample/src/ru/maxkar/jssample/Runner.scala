@@ -38,7 +38,7 @@ final object Runner {
 
     val s1succs = mwait(s1runs)
 
-    val globScope = createGlobScope(s1succs.map(_._2))
+    val (globMap, globScope) = createGlobScope(s1succs.map(_._2))
 
     val s2runs = s1succs.map(x ⇒  exec {
         (x._1, x._2.compile(globScope, x._1))
@@ -46,7 +46,7 @@ final object Runner {
 
     val s2succs = mwait(s2runs)
 
-    val resf = collectjs(s2succs.map(_._2))
+    val resf = collectjs(globMap, s2succs.map(_._2))
 
     try {
       val f = new BufferedWriter(new FileWriter(args(0)))
@@ -125,11 +125,12 @@ final object Runner {
 
   /** Collects a js object. */
   private def collectjs(
-        items : Seq[(Set[String], Seq[(String, FunctionBody)], Seq[Statement])])
+        globs : Map[AnyRef, String],
+        items : Seq[(Set[out.Symbol], Seq[(out.Symbol, FunctionBody)], Seq[Statement])])
       : JSFile = {
 
-    var a = Set.empty[String]
-    var b = Seq.empty[(String, FunctionBody)]
+    var a = Set.empty[AnyRef]
+    var b = Seq.empty[(AnyRef, FunctionBody)]
     var c = Seq.empty[Statement]
 
     items.foreach(x ⇒  {
@@ -138,17 +139,21 @@ final object Runner {
         c ++= x._3
       })
 
-    Model.file(Seq.empty, a.toSeq, Seq.empty, b, Seq.empty, c)
+    Model.file(globs.toSeq, a.toSeq, b, c)
   }
 
 
   /** Creates a global scope. */
-  private def createGlobScope(scopes : Seq[out.Premodule]) : Scope[String, out.Symbol] = {
+  private def createGlobScope(scopes : Seq[out.Premodule])
+      : (Map[AnyRef, String], Scope[String, out.Symbol]) = {
     var gsb = ScopeBuilder.collecting[String, out.Symbol]
+    var rev = new scala.collection.mutable.HashMap[AnyRef, String]
 
     for (s ← scopes)
-      for (e ← s.globals)
+      for (e ← s.globals) {
         gsb.offer(e._1, e._2)
+        rev.put(e._2, e._1)
+      }
 
     val errs = gsb.duplicates
 
@@ -162,7 +167,7 @@ final object Runner {
     if (!errs.isEmpty)
       System.exit(3)
 
-    gsb.scope
+    (rev.toMap, gsb.scope)
   }
 
 

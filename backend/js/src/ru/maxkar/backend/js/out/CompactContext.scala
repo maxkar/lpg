@@ -6,8 +6,7 @@ import java.io.Writer
 private[js] class CompactContext(
     base : Writer,
     vars : IdScope,
-    labels : IdScope,
-    globals : scala.collection.Set[String]) {
+    labels : IdScope) {
 
   /** Writes a text into the output. */
   def write(txt : String) : Unit = base.write(txt)
@@ -17,16 +16,10 @@ private[js] class CompactContext(
   def write(c : Char) : Unit = base.write(c)
 
 
-  /** Writes a global variable. */
-  def writeGlobal(g : String) : Unit = {
-    if (!globals(g))
-      throw new IllegalArgumentException("Unknown global ref to " + g)
-    write(g)
-  }
-
   /** Writes a variable. */
-  def writeVariable(v : AnyRef) : Unit =
+  def writeVariable(v : AnyRef) : Unit = {
     write(vars.lookup(v))
+  }
 
 
   /** Writes a label. */
@@ -59,8 +52,7 @@ private[js] class CompactContext(
 
   /** Creates a subcontext with same labels. */
   def sub(locals : Iterable[AnyRef], sublabels : Iterable[AnyRef]) : CompactContext =
-    new CompactContext(base, vars.sub(locals),
-      labels.sub(sublabels), globals)
+    new CompactContext(base, vars.sub(locals), labels.sub(sublabels))
 
 
   /** Checks, if character is valid identifier char. */
@@ -82,11 +74,10 @@ private[js] class CompactContext(
 /** Compact context utilities. */
 private[js] object CompactContext {
   /** Creates a new context for the writer. */
-  def forWriter(w : Writer, globals : scala.collection.Set[String]) : CompactContext =
+  def forWriter(w : Writer, globals : Map[AnyRef, String]) : CompactContext =
     new CompactContext(w,
-      IdScope.default(x ⇒ KEYWORDS(x) || globals(x)),
-      IdScope.labels(KEYWORDS.contains),
-      globals)
+      IdScope.rootVar(KEYWORDS.apply, globals),
+      IdScope.labels(KEYWORDS.contains))
 
 
   val KEYWORDS = Set(

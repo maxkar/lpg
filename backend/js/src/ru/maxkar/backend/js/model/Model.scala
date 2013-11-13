@@ -101,15 +101,6 @@ final object Model {
     new ObjectExpression(elts)
 
 
-  /** Creates a global variable/reference. */
-  def global(name : String) : LeftValue =
-    new LeftValue {
-      val priority = 0
-      def writeExpression(ctx : CompactContext) : Unit =
-        ctx.writeGlobal(name)
-    }
-
-
   /** Creates a reference to a variable in outer scope. */
   def variable(ref : AnyRef) : LeftValue =
     new LeftValue {
@@ -642,13 +633,17 @@ final object Model {
 
   /** Creates a javascript file. */
   def file(
-      extGlobals : Iterable[String] = Seq.empty,
-      vars : Seq[String] = Seq.empty,
-      pvars : Seq[AnyRef] = Seq.empty,
-      funcs :Seq[(String, FunctionBody)] = Seq.empty,
-      pfuncs :Seq[(AnyRef, FunctionBody)] = Seq.empty,
-      inits : Seq[Statement] = Seq.empty) : JSFile =
-    new JSFile(extGlobals, vars, pvars, funcs, pfuncs, inits)
+        globals : Seq[(AnyRef, String)] = Seq.empty,
+        vars : Seq[AnyRef] = Seq.empty,
+        funcs :Seq[(AnyRef, FunctionBody)] = Seq.empty,
+        inits : Seq[Statement] = Seq.empty) :
+      JSFile = {
+    val uniqueNames = globals.map(_._2).toSet
+    if (uniqueNames.size != globals.size)
+      throw new IllegalArgumentException("Non-unique global name present")
+
+    new JSFile(globals.toMap, vars, funcs, inits)
+  }
 
 
 

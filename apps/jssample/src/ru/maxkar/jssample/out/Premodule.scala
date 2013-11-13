@@ -22,15 +22,15 @@ import scala.collection.mutable.ArrayBuffer
  * providing an "external context"
  */
 final class Premodule(
-    val globals : Seq[(String, GlobalSymbol)],
+    val globals : Seq[(String, Symbol)],
     localScope : Scope[String, Symbol],
     varInitializers : Seq[(Symbol, SExpression[BaseItem])],
-    globalFunctions : Seq[(String, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])],
-    globalVars : Seq[String],
+    globalFunctions : Seq[(Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])],
+    globalVars : Seq[Symbol],
     module : File) {
 
   def compile(rs : Scope[String, Symbol], trace : HostTrace)
-      : ((Set[String], Seq[(String, FunctionBody)], Seq[Statement])) = {
+      : ((Set[Symbol], Seq[(Symbol, FunctionBody)], Seq[Statement])) = {
 
     val modScope = Scope.chain(rs, localScope)
     val mc = new ExprComp(module, trace, modScope)

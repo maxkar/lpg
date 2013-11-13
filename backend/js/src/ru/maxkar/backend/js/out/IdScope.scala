@@ -49,6 +49,21 @@ private[out] final object IdScope {
   def default(blacklist : String ⇒  Boolean) : IdScope =
     new IdScope(defaultResolve, Seq.empty, IdGenNode.default(blacklist))
 
+
+  /** Creates a new root context. */
+  def rootVar(blacklist : String ⇒ Boolean,
+      globals : Map[AnyRef, String]) : IdScope = {
+
+    val idset = globals.values.toSet
+    new IdScope(x ⇒ globals.get(x) match {
+        case Some(a) ⇒ a
+        case None ⇒  throw new BadVariableException(x)
+      },
+      Seq.empty,
+      IdGenNode.default( x ⇒ blacklist(x) || idset(x)))
+    }
+
+
   /** Creates a new label resolver. */
   def labels(blacklist : String ⇒  Boolean) : IdScope =
     new IdScope(defaultLabel, Seq.empty, IdGenNode.default(blacklist))

@@ -59,18 +59,12 @@ final class TestCompactWrite extends JUnitSuite {
     "({x:(3,4),y:5});" ?= objectliteral(("x", seqExpr(3,4)), ("y", 5))
   }
 
-  /** Tests globals. */
-  @Test
-  def testGlobals() : Unit = {
-    "ga;" ?= global("ga")
-  }
-
   /** Tests local variables. */
   @Test
   def testLocalRefs1() : Unit = {
     val df = defun("test", Seq("x1", "x2"), Seq.empty, Seq.empty, Seq.empty,
       Seq(variable("x1"), variable("x2")))
-    val f = file(Seq.empty, Seq.empty, Seq(("test", df._2)), Seq.empty)
+    val f = file(Seq(("test","test")), Seq.empty, Seq(("test", df._2)), Seq.empty)
 
     "function test(a,b){a;b;}" ?= f
   }
@@ -106,53 +100,53 @@ final class TestCompactWrite extends JUnitSuite {
   /** Tests a member access. */
   @Test
   def testMember() : Unit = {
-    "g1.y;" ?= member(global("g1"), "y")
-    "g1[\"\"];" ?= member(global("g1"), "")
-    "g1[23];" ?= member(global("g1"), 23)
-    "g1[\"this is a test\"];" ?= member(global("g1"), "this is a test")
+    "g1.y;" ?= member(variable("g1"), "y")
+    "g1[\"\"];" ?= member(variable("g1"), "")
+    "g1[23];" ?= member(variable("g1"), 23)
+    "g1[\"this is a test\"];" ?= member(variable("g1"), "this is a test")
   }
 
 
   /** Tests a creation expression. */
   @Test
   def testCreation() : Unit = {
-    "new g1();" ?= create(global("g1"))
-    "new g1(1,2,3);" ?= create(global("g1"), 1, 2, 3)
-    "new g1.x(1,2,3);" ?= create(member(global("g1"), "x"), 1, 2, 3)
-    "new g1[2](1,2,3);" ?= create(member(global("g1"), 2), 1, 2, 3)
+    "new g1();" ?= create(variable("g1"))
+    "new g1(1,2,3);" ?= create(variable("g1"), 1, 2, 3)
+    "new g1.x(1,2,3);" ?= create(member(variable("g1"), "x"), 1, 2, 3)
+    "new g1[2](1,2,3);" ?= create(member(variable("g1"), 2), 1, 2, 3)
   }
 
 
   /** Tests a call expression. */
   @Test
   def testCall() : Unit = {
-    "g1(ga,3,4);" ?= call(global("g1"), global("ga"), 3, 4)
-    "g1()();" ?= call(call(global("g1")))
+    "g1(ga,3,4);" ?= call(variable("g1"), variable("ga"), 3, 4)
+    "g1()();" ?= call(call(variable("g1")))
   }
 
 
   /** Tests a prefix/postfix modifiers. */
   @Test
   def testPrefixPostfixMods() : Unit = {
-    "++g1;" ?= prefixInc(global("g1"))
-    "--g1;" ?= prefixDec(global("g1"))
-    "g1++;" ?= postfixInc(global("g1"))
-    "g1--;" ?= postfixDec(global("g1"))
-    "- --g1;" ?= neg(prefixDec(global("g1")))
+    "++g1;" ?= prefixInc(variable("g1"))
+    "--g1;" ?= prefixDec(variable("g1"))
+    "g1++;" ?= postfixInc(variable("g1"))
+    "g1--;" ?= postfixDec(variable("g1"))
+    "- --g1;" ?= neg(prefixDec(variable("g1")))
   }
 
 
   /** Tests for tier-4 expressions. */
   @Test
   def testTier4() : Unit = {
-    "!!g1;" ?= boolNot(boolNot(global("g1")))
-    "~g1;" ?= bitNot(global("g1"))
-    "-g1;" ?= neg(global("g1"))
-    "- -g1;" ?= neg(neg(global("g1")))
+    "!!g1;" ?= boolNot(boolNot(variable("g1")))
+    "~g1;" ?= bitNot(variable("g1"))
+    "-g1;" ?= neg(variable("g1"))
+    "- -g1;" ?= neg(neg(variable("g1")))
     "- - -3;" ?= neg(neg(-3))
     "typeof 3;" ?= typeof(3)
     "void typeof 3;" ?= voidof(typeof(3))
-    "delete g1;" ?= delete(global("g1"))
+    "delete g1;" ?= delete(variable("g1"))
     "-(1+2);" ?= neg(add(1,2))
   }
 
@@ -216,7 +210,7 @@ final class TestCompactWrite extends JUnitSuite {
   /** Tests assignments. */
   @Test
   def testAssigns() : Unit = {
-    val g = global("g1")
+    val g = variable("g1")
     "g1=2;" ?= assign(g, 2)
     "g1+=2;" ?= inplaceAdd(g, 2)
     "g1-=2;" ?= inplaceSub(g, 2)
@@ -235,7 +229,7 @@ final class TestCompactWrite extends JUnitSuite {
   @Test
   def testComma() : Unit = {
     "1,2,3;" ?= seqExpr(seqExpr(1,2),3)
-    "g1((1,2),3);" ?= call(global("g1"), seqExpr(1,2), 3)
+    "g1((1,2),3);" ?= call(variable("g1"), seqExpr(1,2), 3)
     "[(1,2)];" ?= arrayliteral(seqExpr(1,2))
     "({a:(1,2)});" ?= objectliteral(("a", seqExpr(1,2)))
   }
@@ -282,10 +276,10 @@ final class TestCompactWrite extends JUnitSuite {
   /** Tests a for-in statement. */
   @Test
   def testForIn() : Unit = {
-    "for (g1 in []){2;3;}" ?= forIn(global("g1"), arrayliteral(), Seq(2, 3))
-    "for (g1 in [])2;" ?= forIn(global("g1"), arrayliteral(), Seq(2))
-    "for (g1 in []){}" ?= forIn(global("g1"), arrayliteral(), Seq())
-    "for (g1 in 1,2){}" ?= forIn(global("g1"), seqExpr(1,2), Seq())
+    "for (g1 in []){2;3;}" ?= forIn(variable("g1"), arrayliteral(), Seq(2, 3))
+    "for (g1 in [])2;" ?= forIn(variable("g1"), arrayliteral(), Seq(2))
+    "for (g1 in []){}" ?= forIn(variable("g1"), arrayliteral(), Seq())
+    "for (g1 in 1,2){}" ?= forIn(variable("g1"), seqExpr(1,2), Seq())
   }
 
 
@@ -384,7 +378,7 @@ private object TestCompactWrite {
 
     def ?=(other : Statement) : Unit = {
       val body = file(
-        Seq("ga", "gb", "gc", "g1"),
+        Seq("ga", "gb", "gc", "g1").map(x ⇒ (x,x)),
         Seq.empty, Seq.empty, Seq(other))
       this ?= body
     }

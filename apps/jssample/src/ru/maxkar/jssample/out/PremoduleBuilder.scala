@@ -25,11 +25,11 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
 
 
   /** Global names. */
-  private val globals = new ArrayBuffer[(String, GlobalSymbol)]
+  private val globals = new ArrayBuffer[(String, Symbol)]
 
 
   /** Global variables. */
-  private val globalVars = new ArrayBuffer[String]
+  private val globalVars = new ArrayBuffer[Symbol]
 
 
   /** Variable initializers. */
@@ -39,12 +39,12 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
   /** Global functions. */
   private val globalFunctions =
     new ArrayBuffer[
-      (String, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])]
+      (Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])]
 
 
   /** Creates a new global item. */
-  private def glob(name : String, base : SExpression[BaseItem]) : GlobalSymbol = {
-    val res = new GlobalSymbol(new ModuleHost(module, locOf(base)), name)
+  private def glob(name : String, base : SExpression[BaseItem]) : Symbol = {
+    val res = new Symbol(new ModuleHost(module, locOf(base)))
     names.offer(name, res)
     globals += ((name, res))
     res
@@ -54,11 +54,11 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
   private def acceptVar(item : SExpression[BaseItem]) : Unit = {
     item match {
       case SLeaf(BaseId(x), _) ⇒
-        globalVars += x
-        glob(x, item)
+        globalVars += glob(x, item)
       case SList(Seq(a@SLeaf(BaseId(x), _), iv), _) ⇒
-        globalVars += x
-        varInitializers += ((glob(x, a), iv))
+        val vid = glob(x, a)
+        globalVars += vid
+        varInitializers += ((vid, iv))
       case _ ⇒
         trace.mailformedDeclaration(item)
     }
@@ -74,8 +74,8 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
           ndef@SLeaf(BaseId(name), _),
           SList(args, _),
           tail@_*), _) ⇒
-        glob(name, ndef)
-        globalFunctions += ((name, args, tail))
+        val fid = glob(name, ndef)
+        globalFunctions += ((fid, args, tail))
       case _ ⇒
         trace.mailformedDeclaration(item)
     }

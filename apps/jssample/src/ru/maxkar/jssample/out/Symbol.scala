@@ -8,9 +8,6 @@ import ru.maxkar.scoping.simple._
  * Symbol, may define symbol in a source code or a reference to
  * another object.
  */
-trait Symbol {
-  /** Symbol declaration location. */
-  val declaration : ModuleHost
-
-  def resolve() : Expression
+final class Symbol(val declaration : ModuleHost) {
+  def resolve() : Expression = Model.variable(this)
 }
