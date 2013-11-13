@@ -23,10 +23,11 @@ import scala.collection.mutable.ArrayBuffer
  */
 final class Premodule(
     val globals : Seq[(String, Symbol)],
+    val publics : Seq[(String, Symbol)],
     localScope : Scope[String, Symbol],
     varInitializers : Seq[(Symbol, SExpression[BaseItem])],
-    globalFunctions : Seq[(Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])],
-    globalVars : Seq[Symbol],
+    allFunctions : Seq[(Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])],
+    allVars : Seq[Symbol],
     module : File) {
 
   def compile(rs : Scope[String, Symbol], trace : HostTrace)
@@ -45,8 +46,8 @@ final class Premodule(
         case Some(x) ⇒  globIds += x
       })
 
-    (globalVars.toSet,
-      globalFunctions.map(x ⇒
+    (allVars.toSet,
+      allFunctions.map(x ⇒
         (x._1, FuncComp.compFunction(module, modScope, x._2, x._3, trace))),
       stmts)
   }

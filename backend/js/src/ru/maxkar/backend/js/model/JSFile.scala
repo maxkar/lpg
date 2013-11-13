@@ -11,7 +11,7 @@ final class JSFile private[model](
 
   /** Writes to a context. */
   private def writeTo(ctx : CompactContext) : Unit = {
-    val localIds = (vars ++ funcs.map(_._1)).toSet -- globals.values.toSet
+    val localIds = (vars ++ funcs.map(_._1)).toSet -- globals.keys.toSet
 
     val sc = ctx.sub(localIds, Seq.empty)
 

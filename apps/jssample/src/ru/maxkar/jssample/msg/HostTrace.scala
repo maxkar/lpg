@@ -4,6 +4,7 @@ import ru.maxkar.lispy.parser._
 import ru.maxkar.lispy._
 
 import ru.maxkar.jssample.ns._
+import ru.maxkar.jssample.att._
 
 /** Callback for events in one compilation host (source). */
 trait HostTrace {
@@ -24,6 +25,11 @@ trait HostTrace {
   /** Notifies about a parsing failure. */
   def parseFailure(cause : SFormatException) : Unit =
     msg(MailformedFile(host, cause))
+
+
+  /** Notifies about mailformed attribute. */
+  def mailformedAttribute(cause : MailformedAttribute) : Unit =
+    msg(MailformedEltAttribute(host, cause))
 
 
   /** Notifies about a duplicate declaration. */
@@ -59,6 +65,11 @@ trait HostTrace {
   /** Unassignable expression in assign position. */
   def unassignableExpression(expr : SExpression[BaseItem]) : Unit =
     msg(UnassignableExpression(host, locOf(expr)))
+
+
+  /** Duplicate access modifier for an item at given position. */
+  def duplicateAccessDefinition(expr : SExpression[BaseItem]) : Unit =
+    msg(DuplicateAccessDefinition(host, locOf(expr)))
 
 
   /** Calculates a location of the expression. */

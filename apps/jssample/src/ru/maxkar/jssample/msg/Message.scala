@@ -8,6 +8,7 @@ import ru.maxkar.lispy.parser._
 import ru.maxkar.lispy._
 
 import ru.maxkar.jssample.ns._
+import ru.maxkar.jssample.att._
 
 /** Simple trace message. */
 abstract sealed class Message
@@ -19,6 +20,10 @@ final case class ReadFailure(host : File, cause : IOException) extends Message
 
 /** Mailformed file failure. */
 final case class MailformedFile(host : File, cause : SFormatException) extends Message
+
+
+/** Mailformed attribute failure. */
+final case class MailformedEltAttribute(host : File, cause : MailformedAttribute) extends Message
 
 
 /** Duplicate declaration message. */
@@ -50,6 +55,10 @@ final case class UncallableExpression(host : File, pos : TextPosition) extends M
 
 /** Definitely unassignable expression. */
 final case class UnassignableExpression(host : File, pos : TextPosition) extends Message
+
+
+/** Duplicate access definition. */
+final case class DuplicateAccessDefinition(host : File, pos : TextPosition) extends Message
 
 
 
@@ -98,6 +107,14 @@ object Message {
   }
 
 
+  /** Formats an attribute exception message body. */
+  private def formatAttrExceptionBody(exn : MailformedAttribute) : String = {
+    exn match {
+      case MailformedAccess(_) ⇒ "Mailformed access specifier"
+    }
+  }
+
+
   /** Formats a declaration host. */
   private def fmtCandidate(loc : DeclarationHost) : String = {
     loc match {
@@ -118,6 +135,9 @@ object Message {
       case MailformedFile(h, c) ⇒
         stream.print("ERROR: " + h + " " + formatLocation(c.location) + ": ")
         stream.println(formatSExceptionBody(c))
+      case MailformedEltAttribute(h, c) ⇒
+        stream.print("ERROR: " + h + " " + formatLocation(c.location) + ": ")
+        stream.println(formatAttrExceptionBody(c))
       case DuplicateDeclaration(host, name, fst, snd) ⇒
         stream.println(err(host, snd, "Duplicate declaration, first declared at " +
           formatLocation(fst)))
@@ -134,5 +154,7 @@ object Message {
         stream.println(err(host, pos, "Not callable expression"))
       case UnassignableExpression(host, pos) ⇒
         stream.println(err(host, pos, "Assignment to a non-left-value expression"))
+      case DuplicateAccessDefinition(host, pos) ⇒
+        stream.println(err(host, pos, "Duplicate access modifier"))
     }
 }

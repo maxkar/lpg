@@ -7,13 +7,16 @@ import java.io._
 import ru.maxkar.lispy._
 import ru.maxkar.lispy.parser._
 
+import ru.maxkar.jssample.att._
+
 
 /** Loader for the host file. */
 private [stage0] final object HostLoader {
-  /** Parses attributes. */
-  private def parseAttr(x : Input) : Attributes = {
-    Attributes.empty
-  }
+  /** Attribute parser. */
+  private val attParser = AttsParser.fromFactory(
+    Map[String, (Attributes, Input) ⇒  Attributes](
+      "acc" → Access.parse
+    ).get)
 
 
   /** Attempts to load a new host file.
@@ -34,10 +37,13 @@ private [stage0] final object HostLoader {
   def parse(content : Array[Char], msg : HostTrace) : Option[SList[BaseItem]] = {
     val input = Input.fromCharArray(content)
     try {
-      Some(SParser.parseSFile(parseAttr)(input))
+      Some(SParser.parseSFile(attParser)(input))
     } catch {
       case e : SFormatException ⇒
         msg.parseFailure(e)
+        None
+      case e : MailformedAttribute ⇒
+        msg.mailformedAttribute(e)
         None
     }
   }

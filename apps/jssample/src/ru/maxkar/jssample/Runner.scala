@@ -146,14 +146,17 @@ final object Runner {
   /** Creates a global scope. */
   private def createGlobScope(scopes : Seq[out.Premodule])
       : (Map[AnyRef, String], Scope[String, out.Symbol]) = {
+
     var gsb = ScopeBuilder.collecting[String, out.Symbol]
     var rev = new scala.collection.mutable.HashMap[AnyRef, String]
 
     for (s ← scopes)
-      for (e ← s.globals) {
+      for (e ← s.publics)
         gsb.offer(e._1, e._2)
+
+    for (s ← scopes)
+      for (e ← s.globals)
         rev.put(e._2, e._1)
-      }
 
     val errs = gsb.duplicates
 
