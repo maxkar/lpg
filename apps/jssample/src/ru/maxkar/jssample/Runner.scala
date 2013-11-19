@@ -22,14 +22,16 @@ import java.io._
 final object Runner {
 
   def main(args : Array[String]) : Unit = {
-    if (args.length < 2)
+    if (args.length < 3)
       printUsageAndExit();
+
+    val platf = readPlatform(new File(args(1)))
 
     implicit val executor =
       Executors.newFixedThreadPool(
         Runtime.getRuntime().availableProcessors)
 
-    val boot = (new stage0.Processor).process(args.tail)
+    val boot = (new stage0.Processor).process(args.drop(2))
 
     val s0succs = mowait(boot)
 
@@ -38,7 +40,7 @@ final object Runner {
 
     val s1succs = mwait(s1runs)
 
-    val (globMap, globScope) = createGlobScope(s1succs.map(_._2))
+    val (globMap, globScope) = createGlobScope(platf, s1succs.map(_._2))
 
     val s2runs = s1succs.map(x ⇒  exec {
         (x._1, x._2.compile(globScope, x._1))
@@ -62,6 +64,20 @@ final object Runner {
     }
 
     executor.shutdownNow
+  }
+
+
+  /** Reads a platform file. */
+  def readPlatform(file : File) : platform.Platform = {
+    try {
+      platform.Platform.fromFile(file)
+    } catch {
+      case e : Throwable ⇒
+        System.err.println("ERROR: Failed to read platform file : " + e.getMessage)
+        e.printStackTrace(System.err)
+        System.exit(2)
+        null
+      }
   }
 
 
@@ -144,11 +160,16 @@ final object Runner {
 
 
   /** Creates a global scope. */
-  private def createGlobScope(scopes : Seq[out.Premodule])
+  private def createGlobScope(platf : platform.Platform, scopes : Seq[out.Premodule])
       : (Map[AnyRef, String], Scope[String, out.Symbol]) = {
 
     var gsb = ScopeBuilder.collecting[String, out.Symbol]
     var rev = new scala.collection.mutable.HashMap[AnyRef, String]
+
+    for ((k, v) ← platf.items) {
+      gsb.offer(k, v)
+      rev.put(v, k)
+    }
 
     for (s ← scopes)
       for (e ← s.publics)
@@ -203,7 +224,7 @@ final object Runner {
 
   /** Prints a usage and exists. */
   private def printUsageAndExit() : Unit = {
-    System.out.println("Usage: java -jar jssample.jar [out-file-name] [input-dir]+")
+    System.out.println("Usage: java -jar jssample.jar <out-file-name> <platform-file> <input-dir>+")
     System.exit(1)
   }
 }
