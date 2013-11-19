@@ -30,8 +30,8 @@ private[out] class ExprComp(
   import CompilerUtil._
 
 
-  /** Resolves an identifier. */
-  private def resolveId(id : String, item : SExpression[BaseItem]) : Expression = {
+  /** Resolves a base (primitive) identifier. */
+  private def resolveBaseId(id : String, item : SExpression[BaseItem]) : Expression = {
     val  guess = scope.lookup(id)
     if (guess.isEmpty) {
       trace.undeclaredIdentifier(item)
@@ -41,6 +41,18 @@ private[out] class ExprComp(
       Model.failure
     } else
       guess.head.resolve
+  }
+
+
+  /** Resolves an identifier. */
+  private def resolveId(id : String, item : SExpression[BaseItem]) : Expression = {
+    val guess = scope.lookup(id)
+
+    if (guess.isEmpty && !id.startsWith(".") && id.contains(".")) {
+      val parts = id.split("\\.")
+      parts.tail.map(Model.literal).foldLeft(resolveBaseId(parts.head, item))(Model.member)
+    } else
+      resolveBaseId(id, item)
   }
 
 
@@ -77,6 +89,10 @@ private[out] class ExprComp(
           Model.failure
         } else
           UNARY_ASSIGN(x)(lv.asInstanceOf[LeftValue])
+      case SList(Seq(SLeaf(BaseId(x), item), tl), _) if x.startsWith(".") ⇒
+        val path = x.split("\\.")
+        var agg = compile(tl)
+        path.tail.map(Model.literal).foldLeft(compile(tl))(Model.member)
       case SList(Seq(hd, tl@_*), _) ⇒
         val x = compile(hd)
         if (!x.isInstanceOf[NonprimitiveExpression]) {
@@ -99,6 +115,7 @@ private[out] object ExprComp {
   /** Binary operator definitions. */
   private val BINARY_OPS : Map[String, (Expression, Expression) ⇒ Expression] =
     Map(
+      "." → Model.member,
       "*" → Model.mul,
       "/" → Model.div,
       "%" → Model.rem,
