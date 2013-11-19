@@ -15,7 +15,10 @@ private [stage0] final object HostLoader {
   /** Attribute parser. */
   private val attParser = AttsParser.fromFactory(
     Map[String, (Attributes, Input) ⇒  Attributes](
-      "acc" → Access.parse
+      "acc" → Access.parse,
+      "use" → Use.parseUse,
+      "from-self" → Use.parseFromSelf,
+      "from" → Use.parseFromUse
     ).get)
 
 

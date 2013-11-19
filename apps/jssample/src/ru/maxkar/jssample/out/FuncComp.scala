@@ -25,7 +25,7 @@ private[out] object FuncComp {
   /** Compiles a function body. */
   def compFunction(
         host : java.io.File,
-        scope : Scope[String, Symbol],
+        scope : SymbolScope,
         args : Seq[SExpression[BaseItem]],
         tl : Seq[SExpression[BaseItem]],
         trace : HostTrace) :  FunctionBody = {

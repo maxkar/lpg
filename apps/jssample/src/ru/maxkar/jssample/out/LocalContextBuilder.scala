@@ -73,14 +73,14 @@ private[out] final class LocalContextBuilder(
 
 
   /** Ends a building. */
-  def end(parent : Scope[String, Symbol]) : LocalContext =
-    new LocalContext(Scope.chain(parent, varb.scope), labb.scope, trace, host)
+  def end(parent : SymbolScope) : LocalContext =
+    new LocalContext(parent.subscope(varb.scope), labb.scope, trace, host)
 
 
   /** Ends in a related context. */
   def endRelated(other : LocalContext) : LocalContext =
     new LocalContext(
-      Scope.chain(other.variables, varb.scope),
+      other.variables.subscope(varb.scope),
       Scope.chain(other.labels, labb.scope),
       trace, host)
 }

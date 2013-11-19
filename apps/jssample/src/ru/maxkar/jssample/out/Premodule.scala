@@ -22,33 +22,32 @@ import scala.collection.mutable.ArrayBuffer
  * providing an "external context"
  */
 final class Premodule(
+    val id : Seq[String],
     val globals : Seq[(String, Symbol)],
     val publics : Seq[(String, Symbol)],
+    val publicScope : Scope[String, Symbol],
     localScope : Scope[String, Symbol],
     varInitializers : Seq[(Symbol, SExpression[BaseItem])],
     allFunctions : Seq[(Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])],
     allVars : Seq[Symbol],
-    module : File) {
+    defroot : SExpression[BaseItem],
+    val module : File) {
 
-  def compile(rs : Scope[String, Symbol], trace : HostTrace)
+  def compile(rs : Scope[String, Symbol], mods : Scope[String, Premodule], trace : HostTrace)
       : ((Set[Symbol], Seq[(Symbol, FunctionBody)], Seq[Statement])) = {
 
     val modScope = Scope.chain(rs, localScope)
-    val mc = new ExprComp(module, trace, modScope)
+    val baseScope = new SymbolScope(rs, localScope, mods, trace).forNested(defroot)
+    val symScope = baseScope.subscope(localScope)
+
+    val mc = new ExprComp(module, trace, symScope)
 
     val stmts = varInitializers.map(x ⇒
       Model.assign(x._1.resolve.asInstanceOf[LeftValue], mc.compile(x._2)))
 
-    val globIdMap = globals.map(x ⇒ (x._2, x._1)).toMap[Symbol, String]
-    val globIds = new ArrayBuffer[String]
-    varInitializers.foreach(x ⇒ globIdMap.get(x._1) match {
-        case None ⇒  ()
-        case Some(x) ⇒  globIds += x
-      })
-
     (allVars.toSet,
       allFunctions.map(x ⇒
-        (x._1, FuncComp.compFunction(module, modScope, x._2, x._3, trace))),
+        (x._1, FuncComp.compFunction(module, symScope, x._2, x._3, trace))),
       stmts)
   }
 }
@@ -60,8 +59,8 @@ final object Premodule {
 
   /** Precompiles items into a new premodule. Returns a new
    * module, list of duplicate declarations and list of bad declarations. */
-  def precompile(trace : HostTrace, module : File, elts : SList[BaseItem]) : Premodule = {
-    val pmb = new PremoduleBuilder(trace, module)
+  def precompile(trace : HostTrace, id : Seq[String], module : File, elts : SList[BaseItem]) : Premodule = {
+    val pmb = new PremoduleBuilder(trace, module, id)
     elts.items.foreach(pmb.acceptDef)
     pmb.end(elts)
   }

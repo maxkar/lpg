@@ -24,7 +24,7 @@ import scala.collection.JavaConversions._
 private[out] class ExprComp(
     host : java.io.File,
     trace : HostTrace,
-    scope : Scope[String, Symbol]) {
+    scope : SymbolScope) {
 
   import ExprComp._
   import CompilerUtil._
@@ -32,21 +32,16 @@ private[out] class ExprComp(
 
   /** Resolves a base (primitive) identifier. */
   private def resolveBaseId(id : String, item : SExpression[BaseItem]) : Expression = {
-    val  guess = scope.lookup(id)
-    if (guess.isEmpty) {
-      trace.undeclaredIdentifier(item)
-      Model.failure
-    } else if (guess.size > 1) {
-      trace.ambigiousIdentifier(item, guess.toSeq.map(_.declaration))
-      Model.failure
-    } else
-      guess.head.resolve
+    scope.lookup(id, item) match {
+      case None ⇒ Model.failure
+      case Some(x) ⇒ x.resolve
+    }
   }
 
 
   /** Resolves an identifier. */
   private def resolveId(id : String, item : SExpression[BaseItem]) : Expression = {
-    val guess = scope.lookup(id)
+    val guess = scope.lookupAll(id, item)
 
     if (guess.isEmpty && !id.startsWith(".") && id.contains(".")) {
       val parts = id.split("\\.")

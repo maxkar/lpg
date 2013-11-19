@@ -1,5 +1,7 @@
 package ru.maxkar.jssample.platform
 
+import ru.maxkar.scoping.simple._
+
 import ru.maxkar.lispy.parser.TextPosition
 import ru.maxkar.jssample.out.Symbol
 import ru.maxkar.jssample.ns._
@@ -8,6 +10,12 @@ import ru.maxkar.jssample.ns._
  * Platform specification.
  */
 final class Platform(val items : Seq[(String, Symbol)]) {
+  /** Platform scope. */
+  val scope = {
+    val sb = ScopeBuilder.collecting[String, Symbol]
+    items.foreach(x ⇒  sb.offer(x._1, x._2))
+    sb.scope
+  }
 }
 
 

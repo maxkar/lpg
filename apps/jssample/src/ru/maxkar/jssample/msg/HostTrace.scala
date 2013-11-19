@@ -72,6 +72,16 @@ trait HostTrace {
     msg(DuplicateAccessDefinition(host, locOf(expr)))
 
 
+  /** Multiple from statements. */
+  def duplicateFromAttribute(expr : SExpression[BaseItem]) : Unit =
+    msg(DuplicateFromAttribute(host, locOf(expr)))
+
+
+  /** Bad reference to a module. */
+  def badModuleReference(loc : TextPosition) : Unit =
+    msg(BadModuleReference(host, loc))
+
+
   /** Calculates a location of the expression. */
   private def locOf(x : SExpression[BaseItem]) : TextPosition = {
     val slist = x.atts.allValues(Input.textPosition)

@@ -36,19 +36,21 @@ final object Runner {
     val s0succs = mowait(boot)
 
     val s1runs = s0succs.map(x ⇒  exec {
-        (x._1, out.Premodule.precompile(x._1, x._2.source, x._2.body))})
+        (x._1, out.Premodule.precompile(x._1, x._2.path, x._2.source, x._2.body))})
 
     val s1succs = mwait(s1runs)
 
-    val (globMap, globScope) = createGlobScope(platf, s1succs.map(_._2))
+    val modmap = createModsScope(s1succs.map(x ⇒  x._2))
+    val globsMap = createGlobalsMap(platf, s1succs.map(_._2))
+
 
     val s2runs = s1succs.map(x ⇒  exec {
-        (x._1, x._2.compile(globScope, x._1))
+        (x._1, x._2.compile(platf.scope, modmap, x._1))
       })
 
     val s2succs = mwait(s2runs)
 
-    val resf = collectjs(globMap, s2succs.map(_._2))
+    val resf = collectjs(globsMap, s2succs.map(_._2))
 
     try {
       val f = new BufferedWriter(new FileWriter(args(0)))
@@ -158,10 +160,30 @@ final object Runner {
     Model.file(globs.toSeq, a.toSeq, b, c)
   }
 
+  /** Creates a modules scope. */
+  private def createModsScope(scopes : Seq[out.Premodule]) : Scope[String, out.Premodule] = {
+
+    var gsb = ScopeBuilder.collecting[String, out.Premodule]
+
+    scopes.foreach(x ⇒  gsb.offer(x.id.mkString("."), x))
+
+    val errs = gsb.duplicates
+    for ((n, i1, i2) ← errs)
+      System.err.println("ERROR: " + i2.module +
+        "Duplicate definition of module " + n +
+        ", previous declaration at\n  " +
+        i1.module)
+
+    if (!errs.isEmpty)
+      System.exit(3)
+
+    gsb.scope
+  }
+
 
   /** Creates a global scope. */
-  private def createGlobScope(platf : platform.Platform, scopes : Seq[out.Premodule])
-      : (Map[AnyRef, String], Scope[String, out.Symbol]) = {
+  private def createGlobalsMap(platf : platform.Platform, scopes : Seq[out.Premodule])
+      : Map[AnyRef, String] = {
 
     var gsb = ScopeBuilder.collecting[String, out.Symbol]
     var rev = new scala.collection.mutable.HashMap[AnyRef, String]
@@ -172,7 +194,7 @@ final object Runner {
     }
 
     for (s ← scopes)
-      for (e ← s.publics)
+      for (e ← s.globals)
         gsb.offer(e._1, e._2)
 
     for (s ← scopes)
@@ -191,7 +213,7 @@ final object Runner {
     if (!errs.isEmpty)
       System.exit(3)
 
-    (rev.toMap, gsb.scope)
+    rev.toMap
   }
 
 

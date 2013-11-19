@@ -6,7 +6,7 @@ import ru.maxkar.jssample.msg.HostTrace
 
 /** Local compilation context. */
 private[out] final class LocalContext(
-    val variables : Scope[String, Symbol],
+    val variables : SymbolScope,
     val labels : Scope[String, Symbol],
     val trace : HostTrace,
     host : java.io.File) {

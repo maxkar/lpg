@@ -13,7 +13,7 @@ import ru.maxkar.scoping.simple._
 
 import scala.collection.mutable.ArrayBuffer
 
-private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.File) {
+private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.File, id : Seq[String]) {
   import CompilerUtil._
 
 
@@ -23,6 +23,11 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
       trace.duplicateDeclaration(k,
         s1.declaration.offset,
         s2.declaration.offset))
+
+
+  /** Public scope. */
+  private val pubScope = ScopeBuilder.withCallback[String, Symbol](
+    (k, s1, s2) ⇒ ())
 
 
   /** Global names. */
@@ -88,9 +93,11 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
     acc match {
       case Export ⇒
         publics += ((name, res))
+        pubScope.offer(name, res)
         globals += ((name, res))
       case Public ⇒
         publics += ((name, res))
+        pubScope.offer(name, res)
       case Private ⇒
     }
 
@@ -131,6 +138,7 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
 
   /** Ends a building. */
   def end(e : SExpression[BaseItem]) : Premodule =
-    new Premodule(globals, publics, names.scope, varInitializers,
-      allFunctions, allVars, module)
+    new Premodule(id, globals, publics, pubScope.scope,
+      names.scope, varInitializers,
+      allFunctions, allVars, e, module)
 }

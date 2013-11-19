@@ -106,6 +106,7 @@ object SimpleBlock {
 
     val blocks = new ArrayBuffer[BlockCompiler]
 
+
     stmts foreach (x ⇒  x match {
         case SList(Seq(SLeaf(BaseId("var"), _), tl@_*), _) ⇒
           tl.foreach(dcl ⇒ dcl match {

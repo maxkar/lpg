@@ -61,6 +61,12 @@ final case class UnassignableExpression(host : File, pos : TextPosition) extends
 final case class DuplicateAccessDefinition(host : File, pos : TextPosition) extends Message
 
 
+/** Duplicate "from" attribute. */
+final case class DuplicateFromAttribute(host : File, pos : TextPosition) extends Message
+
+
+/** Bad module reference error. */
+final case class BadModuleReference(host : File, pos : TextPosition) extends Message
 
 
 /** Host message utilities. */
@@ -119,7 +125,7 @@ object Message {
   private def fmtCandidate(loc : DeclarationHost) : String = {
     loc match {
       case SystemHost ⇒  "  <System>"
-      case ModuleHost(f, l) ⇒ f + formatLocation(l)
+      case ModuleHost(f, l) ⇒ "  " + f + formatLocation(l)
     }
   }
 
@@ -156,5 +162,9 @@ object Message {
         stream.println(err(host, pos, "Assignment to a non-left-value expression"))
       case DuplicateAccessDefinition(host, pos) ⇒
         stream.println(err(host, pos, "Duplicate access modifier"))
+      case DuplicateFromAttribute(host, pos) ⇒
+        stream.println(err(host, pos, "Duplicate from attribute"))
+      case BadModuleReference(host, pos) ⇒
+        stream.println(err(host, pos, "Invalid module reference"))
     }
 }
