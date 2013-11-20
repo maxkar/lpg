@@ -34,10 +34,6 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
   private val globals = new ArrayBuffer[(String, Symbol)]
 
 
-  /** Public names. */
-  private val publics = new ArrayBuffer[(String, Symbol)]
-
-
   /** Global variables. */
   private val allVars = new ArrayBuffer[Symbol]
 
@@ -82,6 +78,25 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
   }
 
 
+  /** Exports an item if it is requested by the attribute value. */
+  private def exportIfNeeded(atts : SExpression[BaseItem], symbol : Symbol, defName : String) : Unit = {
+    val attr = atts.atts.allValues(Export.ATTR)
+
+    println(attr)
+    if (attr.isEmpty)
+      return
+    if (attr.size > 1) {
+      trace.duplicateExportAttribute(atts)
+      return
+    }
+
+    attr.head match {
+      case None ⇒  globals += ((defName, symbol))
+      case Some(name) ⇒ globals += ((name, symbol))
+    }
+  }
+
+
   /** Creates a new id using a list of access definers. */
   private def mkSymbol(name : String, base : SExpression[BaseItem],
         accDefault : Access, accDefiners : SExpression[BaseItem]*) : Symbol = {
@@ -91,15 +106,11 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
 
     val acc = effectiveAcc(accDefault, accDefiners :_*)
     acc match {
-      case Export ⇒
-        publics += ((name, res))
-        pubScope.offer(name, res)
-        globals += ((name, res))
-      case Public ⇒
-        publics += ((name, res))
-        pubScope.offer(name, res)
+      case Public ⇒ pubScope.offer(name, res)
       case Private ⇒
     }
+
+    exportIfNeeded(base, res, name)
 
     res
   }
@@ -138,7 +149,7 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
 
   /** Ends a building. */
   def end(e : SExpression[BaseItem]) : Premodule =
-    new Premodule(id, globals, publics, pubScope.scope,
+    new Premodule(id, globals, pubScope.scope,
       names.scope, varInitializers,
       allFunctions, allVars, e, module)
 }

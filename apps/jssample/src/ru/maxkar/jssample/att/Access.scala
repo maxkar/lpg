@@ -16,12 +16,6 @@ final case object Private extends Access
 final case object Public extends Access
 
 
-/** Global access. Available from other modules.
- * Can't change name due to access restriction. */
-final case object Export extends Access
-
-
-
 /** Mailformed access exception. */
 final case class MailformedAccess(location : Attributes) extends MailformedAttribute(
   "Mailformed access attribute at " + location)
@@ -40,7 +34,6 @@ final object Access {
     tok match {
       case "private" ⇒ Attributes.singleton(ATTR, Private)
       case "public" ⇒ Attributes.singleton(ATTR, Public)
-      case "export" ⇒ Attributes.singleton(ATTR, Export)
       case _ ⇒ throw new MailformedAccess(start)
     }
   }

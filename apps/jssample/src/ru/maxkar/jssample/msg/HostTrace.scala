@@ -77,6 +77,11 @@ trait HostTrace {
     msg(DuplicateFromAttribute(host, locOf(expr)))
 
 
+  /** Multiple export statements. */
+  def duplicateExportAttribute(expr : SExpression[BaseItem]) : Unit =
+    msg(DuplicateExportAttribute(host, locOf(expr)))
+
+
   /** Bad reference to a module. */
   def badModuleReference(loc : TextPosition) : Unit =
     msg(BadModuleReference(host, loc))

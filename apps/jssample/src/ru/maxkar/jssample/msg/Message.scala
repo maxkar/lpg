@@ -65,6 +65,10 @@ final case class DuplicateAccessDefinition(host : File, pos : TextPosition) exte
 final case class DuplicateFromAttribute(host : File, pos : TextPosition) extends Message
 
 
+/** Duplicate "export" attribute. */
+final case class DuplicateExportAttribute(host : File, pos : TextPosition) extends Message
+
+
 /** Bad module reference error. */
 final case class BadModuleReference(host : File, pos : TextPosition) extends Message
 
@@ -164,6 +168,8 @@ object Message {
         stream.println(err(host, pos, "Duplicate access modifier"))
       case DuplicateFromAttribute(host, pos) ⇒
         stream.println(err(host, pos, "Duplicate from attribute"))
+      case DuplicateExportAttribute(host, pos) ⇒
+        stream.println(err(host, pos, "Duplicate export attribute"))
       case BadModuleReference(host, pos) ⇒
         stream.println(err(host, pos, "Invalid module reference"))
     }
