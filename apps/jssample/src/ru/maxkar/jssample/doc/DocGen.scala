@@ -108,7 +108,7 @@ object DocGen {
   private def docFun(v : FunDoc, w : Writer) : Unit = {
     w.write("<tr><td>")
     w.write(if (v.isPublic) "public" else "private")
-    w.write("</td><td>")
+    w.write("</td><td class=\"iname\">")
     w.write(htmlText(v.name))
     w.write("</td><td>")
     v.globalName match {
@@ -148,7 +148,7 @@ object DocGen {
 
   /** Documents a variable. */
   private def docVar(v : VarDoc, w : Writer) : Unit = {
-    w.write("<tr><td>")
+    w.write("<tr><td class=\"iname\">")
     w.write(if (v.isPublic) "public" else "private")
     w.write("</td><td>")
     w.write(htmlText(v.name))
@@ -247,6 +247,9 @@ object DocGen {
     |.modifier {
     |  color: gray;
     |  font-style: italic;
+    |}
+    |.iname {
+    |  font-weight: bold;
     |}
   """.stripMargin('|')
 }

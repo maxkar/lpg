@@ -59,6 +59,7 @@ private[out] class ExprComp(
       case SLeaf(BaseInteger(x), _) ⇒ literal(x)
       case SLeaf(BaseFloating(x, y), _) ⇒ literal(x, y)
       case SLeaf(BaseString(x), _) ⇒ literal(x)
+      case SLeaf(BaseId("null"), _) ⇒ exprNull
       case SLeaf(BaseId(x), _) ⇒ resolveId(x, item)
       case SList(Seq(fdn@SLeaf(BaseId("fun"), _),
           SList(args, _),
