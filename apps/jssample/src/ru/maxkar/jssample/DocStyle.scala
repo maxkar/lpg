@@ -57,7 +57,7 @@ private[jssample] object DocStyle {
     |  display: flex;
     |}
     |div.pkglist {
-    |  background-color: magenta;
+    |  background-color: khaki;
     |  min-height: 100%;
     |}
     |div.modframe {
