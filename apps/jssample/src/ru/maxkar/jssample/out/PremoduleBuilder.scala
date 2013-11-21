@@ -10,6 +10,8 @@ import ru.maxkar.lispy.parser.Input
 
 import ru.maxkar.scoping.simple._
 
+import ru.maxkar.jssample.doc._
+
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -40,6 +42,14 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
 
   /** Variable initializers. */
   private val varInitializers = new ArrayBuffer[(Symbol, SExpression[BaseItem])]
+
+
+  /** Variable documentation. */
+  private val varDoc = new ArrayBuffer[VarDoc]
+
+
+  /** Function documentation. */
+  private val funDoc = new ArrayBuffer[FunDoc]
 
 
   /** Global functions. */
@@ -78,28 +88,33 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
   }
 
 
-  /** Exports an item if it is requested by the attribute value. */
-  private def exportIfNeeded(atts : SExpression[BaseItem], symbol : Symbol, defName : String) : Unit = {
+  /** Exports an item if it is requested by the attribute value.
+   * @return name of the exported item (if possible).
+   */
+  private def exportIfNeeded(atts : SExpression[BaseItem], symbol : Symbol, defName : String) : Option[String] = {
     val attr = atts.atts.allValues(Export.ATTR)
 
-    println(attr)
     if (attr.isEmpty)
-      return
+      return None
     if (attr.size > 1) {
       trace.duplicateExportAttribute(atts)
-      return
+      return None
     }
 
     attr.head match {
-      case None ⇒  globals += ((defName, symbol))
-      case Some(name) ⇒ globals += ((name, symbol))
+      case None ⇒
+        globals += ((defName, symbol))
+        Some(defName)
+      case Some(name) ⇒
+        globals += ((name, symbol))
+        Some(name)
     }
   }
 
 
   /** Creates a new id using a list of access definers. */
   private def mkSymbol(name : String, base : SExpression[BaseItem],
-        accDefault : Access, accDefiners : SExpression[BaseItem]*) : Symbol = {
+        accDefault : Access, accDefiners : SExpression[BaseItem]*) : (Symbol, Option[String], Access) = {
 
     val res = new Symbol(new ModuleHost(module, locOf(base)))
     names.offer(name, res)
@@ -110,22 +125,53 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
       case Private ⇒
     }
 
-    exportIfNeeded(base, res, name)
+    val extName = exportIfNeeded(base, res, name)
 
-    res
+    (res, extName, acc)
+  }
+
+
+  /** Calculates documentation of the item. */
+  private def docOf(item : SExpression[BaseItem]): DocBody = {
+    val att = item.atts.allValues(Doc.ATTR)
+    if (att.isEmpty)
+      DocBody.text("")
+    else
+      att.head
+  }
+
+
+  /** Attempts to document a variable. */
+  private def docVar(
+        item : SExpression[BaseItem],
+        name : String,
+        externName : Option[String],
+        acc : Access) : Unit = {
+    varDoc += new VarDoc(name, externName, acc == Public, docOf(item))
   }
 
 
   private def acceptVar(item : SExpression[BaseItem], scope : SExpression[BaseItem]) : Unit = {
     item match {
       case SLeaf(BaseId(x), _) ⇒
-        allVars += mkSymbol(x, item, Private, item, scope)
+        val (sym, extName, acc) = mkSymbol(x, item, Private, item, scope)
+        docVar(item, x, extName, acc)
+        allVars += sym
       case SList(Seq(a@SLeaf(BaseId(x), _), iv), _) ⇒
-        val vid = mkSymbol(x, a, Private, item, scope)
+        val (vid, extName, acc) = mkSymbol(x, a, Private, item, scope)
+        docVar(a, x, extName, acc)
         allVars += vid
         varInitializers += ((vid, iv))
       case _ ⇒
         trace.mailformedDeclaration(item)
+    }
+  }
+
+
+  private def fnArgDoc(item : SExpression[BaseItem]) : ArgDoc = {
+    item match {
+      case SLeaf(BaseId(name), _) ⇒ new ArgDoc(name, docOf(item))
+      case _ ⇒ new ArgDoc("???", DocBody.text("???"))
     }
   }
 
@@ -135,12 +181,17 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
       case SList(Seq(SLeaf(BaseId("var"), _), tl@_*), _) ⇒
         tl.foreach(acceptVar(_, item))
       case SList(Seq(
-          SLeaf(BaseId("def"), _),
+          dfn@SLeaf(BaseId("def"), _),
           ndef@SLeaf(BaseId(name), _),
-          SList(args, _),
+          alist@SList(args, _),
           tail@_*), _) ⇒
-        val fid = mkSymbol(name, ndef, Public, item)
+        val (fid, extName, acc) = mkSymbol(name, ndef, Public, item)
         allFunctions += ((fid, args, tail))
+
+        funDoc += new FunDoc(name, extName, acc == Public,
+           docOf(dfn),
+           args.map(fnArgDoc),
+           docOf(alist))
       case _ ⇒
         trace.mailformedDeclaration(item)
     }
@@ -148,8 +199,13 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
 
 
   /** Ends a building. */
-  def end(e : SExpression[BaseItem]) : Premodule =
+  def end(e : SExpression[BaseItem]) : Premodule = {
+    val moddoc = e.atts.allValues(Doc.ATTR)
+
     new Premodule(id, globals, pubScope.scope,
+      if (moddoc.isEmpty) None else Some(moddoc.head),
+      varDoc, funDoc,
       names.scope, varInitializers,
       allFunctions, allVars, e, module)
+  }
 }

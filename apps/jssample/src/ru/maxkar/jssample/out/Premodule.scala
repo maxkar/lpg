@@ -7,6 +7,7 @@ import ru.maxkar.lispy._
 import ru.maxkar.lispy.parser.TextPosition
 
 import ru.maxkar.jssample.msg.HostTrace
+import ru.maxkar.jssample.doc._
 
 import ru.maxkar.backend.js.model._
 
@@ -25,6 +26,9 @@ final class Premodule(
     val id : Seq[String],
     val globals : Seq[(String, Symbol)],
     val publicScope : Scope[String, Symbol],
+    val doc : Option[DocBody],
+    val varDoc : Seq[VarDoc],
+    val funDoc : Seq[FunDoc],
     localScope : Scope[String, Symbol],
     varInitializers : Seq[(Symbol, SExpression[BaseItem])],
     allFunctions : Seq[(Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])],

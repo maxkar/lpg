@@ -102,16 +102,55 @@ object MySettings {
   )
 }
 
+
+abstract sealed class RefEntry {
+  def refs() : Seq[ClasspathDep[ProjectReference]]
+  def libs() : Seq[File]
+}
+
+
+class ProjectEntry(prj : ProjectReference) extends RefEntry {
+  def refs() : Seq[ClasspathDep[ProjectReference]] = Seq(prj)
+  def libs() : Seq[File] = Seq.empty
+}
+
+
+class LibEntry(jars : Seq[File]) extends RefEntry {
+  def refs() : Seq[ClasspathDep[ProjectReference]] = Seq.empty
+  def libs() : Seq[File] = jars
+}
+
+
+
 object CustomBuild extends Build {
   import MySettings._
+  import scala.language.implicitConversions
 
-  private def prj(path : String, deps : ClasspathDep[ProjectReference]*) : Project = {
+
+  @inline
+  private implicit def prj2ref(prj : Project) : RefEntry =
+    new ProjectEntry(prj)
+
+
+  /** Creates a new library. */
+  private def lib(names : String*) : LibEntry =
+    new LibEntry(names.map(x ⇒  file("ext-lib") / (x + ".jar")))
+
+
+  private def prj(path : String, deps : RefEntry*) : Project = {
     val pname = path.replace('/', '_')
-    Project(pname, file(path), settings = buildSettings ++ Seq(Tasks.internalName := path)).
-      dependsOn(deps : _*)
+    val extJars : Seq[File] = deps.flatMap(x ⇒  x.libs)
+    Project(pname, file(path),
+      settings = buildSettings ++ Seq(
+        Tasks.internalName := path,
+        unmanagedJars in Compile := extJars.map(Attributed.blank))).
+      dependsOn(deps.flatMap(x ⇒  x.refs) : _*)
   }
 
+  /* Libs. */
+  lazy val coverity_escapers = lib("coverity-escapers-1.1.1")
 
+  /* Projects. */
   lazy val lib_alias = prj("lib/jalias")
   lazy val hunk = prj("lib/hunk")
 
@@ -122,8 +161,11 @@ object CustomBuild extends Build {
   lazy val lib_scoping_simple = prj("lib/scoping/simple")
 
   lazy val be_js = prj("backend/js")
+
   lazy val jssample = prj("apps/jssample",
-    lispy_base, hunk, lib_scoping_simple, be_js)
+    lispy_base, hunk, lib_scoping_simple, be_js,
+    coverity_escapers)
+
 
   lazy val root = Project("root", file("."),
     settings = buildSettings ++ unidocSettings ++ Seq(Tasks.internalName := "root")

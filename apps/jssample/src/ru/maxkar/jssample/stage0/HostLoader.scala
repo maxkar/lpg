@@ -19,7 +19,8 @@ private [stage0] final object HostLoader {
       "use" → Use.parseUse,
       "from-self" → Use.parseFromSelf,
       "from" → Use.parseFromUse,
-      "export" → Export.parse
+      "export" → Export.parse,
+      "doc" → Doc.parse
     ).get)
 
 

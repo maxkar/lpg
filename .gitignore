@@ -1,5 +1,6 @@
 /.devtk/
 target/
 /test/
+/ext-lib/
 .*
 !.gitignore
