@@ -57,11 +57,12 @@ private[out] final class LocalContextBuilder(
   /** Adds a function. */
   def mkFunction(
         name : String,
+        vaarg : Boolean,
         defn : SExpression[BaseItem],
         args : Seq[SExpression[BaseItem]],
         body : Seq[SExpression[BaseItem]])
       : Symbol = {
-    val res = root.mkFunction(defn, args, body)
+    val res = root.mkFunction(defn, vaarg, args, body)
     varb.offer(name, res)
     res
   }

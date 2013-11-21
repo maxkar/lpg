@@ -121,8 +121,15 @@ object DocGen {
     if (!v.args.isEmpty) {
       w.write("<div class=\"fnsection\">Arguments:</div><div class=\"fndata\"><table class=\"alist\">")
       w.write("<thead><tr><td>Name</td><td class=\"descr\">Description</td></tr></thead>")
-      for (a ← v.args) {
-        w.write("<tr><td>")
+
+
+      val aiter = v.args.iterator
+
+      while (aiter.hasNext) {
+        val a = aiter.next
+        w.write("<tr><td><div>")
+        if (v.isVararg && !aiter.hasNext)
+          w.write("<span class=\"modifier\">vararg</span>&nbsp;")
         w.write(htmlText(a.name))
         w.write("</td><td>")
         DocBody.write(a.doc, w)
@@ -236,6 +243,10 @@ object DocGen {
     |table.alist {
     |  border: 1px solid gray;
     |  margin-top: 4px;
+    |}
+    |.modifier {
+    |  color: gray;
+    |  font-style: italic;
     |}
   """.stripMargin('|')
 }

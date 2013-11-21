@@ -3,6 +3,7 @@ package ru.maxkar.jssample.out
 import ru.maxkar.jssample.msg.HostTrace
 
 import ru.maxkar.jssample.ns._
+import ru.maxkar.jssample.att.Vararg
 import ru.maxkar.lispy._
 import ru.maxkar.lispy.parser.TextPosition
 import ru.maxkar.lispy.parser.Input
@@ -59,10 +60,13 @@ private[out] class ExprComp(
       case SLeaf(BaseFloating(x, y), _) ⇒ literal(x, y)
       case SLeaf(BaseString(x), _) ⇒ literal(x)
       case SLeaf(BaseId(x), _) ⇒ resolveId(x, item)
-      case SList(Seq(SLeaf(BaseId("fun"), _),
+      case SList(Seq(fdn@SLeaf(BaseId("fun"), _),
           SList(args, _),
           body@_*), _) ⇒
-        val fb = FuncComp.compFunction(host, scope, args, body, trace)
+        val isvaarg = !fdn.atts.allValues(Vararg.ATTR).isEmpty
+        if (isvaarg && args.isEmpty)
+          trace.noArgVararg(item)
+        val fb = FuncComp.compFunction(host, scope, isvaarg, args, body, trace)
         anonfun(fb.args, fb.vars, fb.funcs, fb.labels, fb.stmt)
       case SList(Seq(SLeaf(BaseId("if"), _), c, l, r), _) ⇒
         cond(compile(c), compile(l), compile(r))

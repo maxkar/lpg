@@ -32,7 +32,7 @@ final class RootScopeBuilder(host : File) {
   private val labels = new ArrayBuffer[Symbol]
   /** All local functions. */
   private val funcs = new ArrayBuffer[
-    (Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])]
+    (Symbol, Boolean, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])]
 
 
   /** Creates a new argument variable for the given host. */
@@ -62,17 +62,18 @@ final class RootScopeBuilder(host : File) {
   /** Creates a new local function. */
   def mkFunction(
         defn : SExpression[BaseItem],
+        isvaarg : Boolean,
         args : Seq[SExpression[BaseItem]],
         body : Seq[SExpression[BaseItem]])
       : Symbol = {
     val res = new Symbol(new ModuleHost(host, locOf(defn)))
-    funcs += ((res, args, body))
+    funcs += ((res, isvaarg, args, body))
     res
   }
 
   def getArgs() : Seq[Symbol] = args
   def getVars() : Seq[Symbol] = locals
   def getLabels() : Seq[Symbol] = labels
-  def getFuncs() : Seq[(Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])] =
+  def getFuncs() : Seq[(Symbol, Boolean, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])] =
     funcs
 }

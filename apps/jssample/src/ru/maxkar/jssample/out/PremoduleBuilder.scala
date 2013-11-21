@@ -55,7 +55,7 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
   /** Global functions. */
   private val allFunctions =
     new ArrayBuffer[
-      (Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])]
+      (Symbol, Boolean, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])]
 
 
 
@@ -186,9 +186,14 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
           alist@SList(args, _),
           tail@_*), _) ⇒
         val (fid, extName, acc) = mkSymbol(name, ndef, Public, item)
-        allFunctions += ((fid, args, tail))
+        val isvaarg = !dfn.atts.allValues(Vararg.ATTR).isEmpty
 
-        funDoc += new FunDoc(name, extName, acc == Public,
+        if (isvaarg && args.isEmpty)
+          trace.noArgVararg(item)
+
+        allFunctions += ((fid, isvaarg, args, tail))
+
+        funDoc += new FunDoc(name, extName, acc == Public, isvaarg,
            docOf(dfn),
            args.map(fnArgDoc),
            docOf(alist))

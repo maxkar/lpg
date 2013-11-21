@@ -87,6 +87,11 @@ trait HostTrace {
     msg(BadModuleReference(host, loc))
 
 
+  /** Callback for no-arguments vararg. */
+  def noArgVararg(expr : SExpression[BaseItem]) : Unit =
+    msg(NoArgVararg(host, locOf(expr)))
+
+
   /** Calculates a location of the expression. */
   private def locOf(x : SExpression[BaseItem]) : TextPosition = {
     val slist = x.atts.allValues(Input.textPosition)

@@ -31,7 +31,7 @@ final class Premodule(
     val funDoc : Seq[FunDoc],
     localScope : Scope[String, Symbol],
     varInitializers : Seq[(Symbol, SExpression[BaseItem])],
-    allFunctions : Seq[(Symbol, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])],
+    allFunctions : Seq[(Symbol, Boolean, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])],
     allVars : Seq[Symbol],
     defroot : SExpression[BaseItem],
     val module : File) {
@@ -50,7 +50,7 @@ final class Premodule(
 
     (allVars.toSet,
       allFunctions.map(x ⇒
-        (x._1, FuncComp.compFunction(module, symScope, x._2, x._3, trace))),
+        (x._1, FuncComp.compFunction(module, symScope, x._2, x._3, x._4, trace))),
       stmts)
   }
 }

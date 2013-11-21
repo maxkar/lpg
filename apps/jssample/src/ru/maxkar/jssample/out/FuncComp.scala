@@ -26,6 +26,7 @@ private[out] object FuncComp {
   def compFunction(
         host : java.io.File,
         scope : SymbolScope,
+        isVaarg : Boolean,
         args : Seq[SExpression[BaseItem]],
         tl : Seq[SExpression[BaseItem]],
         trace : HostTrace) :  FunctionBody = {
@@ -44,12 +45,31 @@ private[out] object FuncComp {
     val locCtx = lcb.end(scope)
     val vs = locCtx.variables
 
+    val vaargsinit : Seq[Statement] =
+      if (!isVaarg || args.isEmpty)
+        Seq.empty
+      else
+        args.last match {
+         case a@SLeaf(BaseId(id), _) ⇒
+           (vs.lookup(id, a), vs.lookup("Array", a)) match {
+             case (Some(v), Some(a)) ⇒
+               Seq(assign(v.resolve.asInstanceOf[LeftValue],
+                 call(
+                   member(member(member(a.resolve, literal("prototype")),
+                     literal("slice")), literal("call")),
+                   arguments,
+                   literal(args.size - 1))))
+             case _ ⇒ Seq.empty
+           }
+         case _ ⇒ Seq.empty
+        }
+
     new FunctionBody(
       root.getArgs,
       root.getVars,
       root.getFuncs.map(x ⇒  (x._1,
-        compFunction(host, vs, x._2, x._3, trace))),
+        compFunction(host, vs, x._2, x._3, x._4, trace))),
       root.getLabels,
-      stmtb.compileToSeq(locCtx))
+      vaargsinit ++ stmtb.compileToSeq(locCtx))
   }
 }

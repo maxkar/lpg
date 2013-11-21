@@ -1,6 +1,7 @@
 package ru.maxkar.jssample.out
 
 import ru.maxkar.jssample.ns._
+import ru.maxkar.jssample.att.Vararg
 import ru.maxkar.lispy._
 import ru.maxkar.lispy.parser.TextPosition
 import ru.maxkar.lispy.parser.Input
@@ -117,8 +118,11 @@ object SimpleBlock {
               case _ ⇒
                 ctx.trace.mailformedDeclaration(dcl)
             })
-        case SList(Seq(SLeaf(BaseId("def"), _), SLeaf(BaseId(fname), _), SList(args, _), tl@_*), _) ⇒
-          ctx.mkFunction(fname, x, args, tl)
+        case SList(Seq(dfn@SLeaf(BaseId("def"), _), SLeaf(BaseId(fname), _), SList(args, _), tl@_*), _) ⇒
+          val vaarg = !dfn.atts.allValues(Vararg.ATTR).isEmpty
+          if (vaarg && args.isEmpty)
+            ctx.trace.noArgVararg(x)
+          ctx.mkFunction(fname, vaarg, x, args, tl)
         case SList(Seq(SLeaf(BaseId("ret"), _), expr), _) ⇒
           blocks += new RetBlock(expr)
         case SList(Seq(SLeaf(BaseId("do"), _), tl@_*), _) ⇒

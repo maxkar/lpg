@@ -73,6 +73,10 @@ final case class DuplicateExportAttribute(host : File, pos : TextPosition) exten
 final case class BadModuleReference(host : File, pos : TextPosition) extends Message
 
 
+/** Vararg function with no arguments. */
+final case class NoArgVararg(host : File, pos : TextPosition) extends Message
+
+
 /** Host message utilities. */
 object Message {
 
@@ -172,5 +176,7 @@ object Message {
         stream.println(err(host, pos, "Duplicate export attribute"))
       case BadModuleReference(host, pos) ⇒
         stream.println(err(host, pos, "Invalid module reference"))
+      case NoArgVararg(host, pos) ⇒
+        stream.println(err(host, pos, "Vararg function have no argument parameters"))
     }
 }
