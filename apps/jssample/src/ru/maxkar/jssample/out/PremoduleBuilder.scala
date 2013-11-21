@@ -200,11 +200,9 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
 
   /** Ends a building. */
   def end(e : SExpression[BaseItem]) : Premodule = {
-    val moddoc = e.atts.allValues(Doc.ATTR)
 
     new Premodule(id, globals, pubScope.scope,
-      if (moddoc.isEmpty) None else Some(moddoc.head),
-      varDoc, funDoc,
+      docOf(e), varDoc, funDoc,
       names.scope, varInitializers,
       allFunctions, allVars, e, module)
   }

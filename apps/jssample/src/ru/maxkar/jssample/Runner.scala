@@ -5,7 +5,7 @@ import java.util.concurrent._
 import ru.maxkar.lispy.Attribute
 
 import ru.maxkar.jssample.msg._
-import ru.maxkar.jssample.doc._
+import ru.maxkar.jssample.doc.DocGen
 
 import ru.maxkar.hunk.Hunk._
 import ru.maxkar.hunk.Hunk
@@ -17,7 +17,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConversions._
 
 import java.io._
-import com.coverity.security.Escape._
 
 
 /** Application runner class. */
@@ -72,162 +71,9 @@ final object Runner {
     val docDir = new File(args(1))
     docDir.mkdirs()
 
-    val moddoc : Seq[String] = s1succs.flatMap(x ⇒  writeDoc(docDir, x._2))
-    writeDocCsss(docDir)
-    writeMeta(moddoc, docDir)
-  }
-
-
-  /** Writes a meta-documentation. */
-  private def writeMeta(moddoc : Seq[String], base : File) : Unit = {
-    if (moddoc.isEmpty)
-      return
-
-    val fs = new FileOutputStream(new File(base, "index.html"))
-    try {
-      val pn = new OutputStreamWriter(new BufferedOutputStream(fs), "UTF-8")
-        pn.write("<!DOCTYPE html><html><head><meta charset=\"utf-8\">")
-        pn.write("<link rel=\"stylesheet\" href=\"style.css\" type=\"text/css\"><title>JSLPG documentation")
-        pn.write("</title></head><body class=\"framedoc\">")
-        pn.write("<div class=\"pkglist\"><h1>Packages</h1>")
-        for (x ← moddoc) {
-          pn.write("<div><a target=\"moditem\" href=\"_")
-          pn.write(html(x))
-          pn.write(".html\">")
-          pn.write(html(x))
-          pn.write("</a></div>")
-        }
-        pn.write("</div>")
-        pn.write("<div class=\"modframe\"><iframe name=\"moditem\" seamless=\"true\"/></div>")
-        pn.write("</body></html>")
-      try {
-      } finally {
-        pn.close
-      }
-    } finally {
-      fs.close
-    }
-  }
-
-
-  /** Writes a documentation css. */
-  private def writeDocCsss(base : File) : Unit = {
-    val fs = new FileOutputStream(new File(base, "style.css"))
-    try {
-      fs.write(DocStyle.STYLE.getBytes("UTF-8"))
-    } finally {
-      fs.close
-    }
-  }
-
-
-  /** Writes a single documentation file. */
-  private def writeDoc(base : File, mod : out.Premodule) : Option[String] = {
-    if (!mod.doc.isDefined && mod.varDoc.isEmpty && mod.funDoc.isEmpty)
-      return None
-
-    val modName = mod.id.mkString(".")
-
-    val fs = new FileOutputStream(new File(base, "_" + modName + ".html"))
-    try {
-      val pn = new OutputStreamWriter(new BufferedOutputStream(fs), "UTF-8")
-      try {
-        pn.write("<!DOCTYPE html><html><head><meta charset=\"utf-8\">")
-        pn.write("<link rel=\"stylesheet\" href=\"style.css\" type=\"text/css\"><title>Module ")
-        pn.write(htmlText(modName))
-        pn.write("</title></head><body>")
-        pn.write("<header class=\"modname\"><h1>Module ")
-        pn.write(htmlText(modName))
-        pn.write("</h1></header>")
-
-        mod.doc match {
-          case None ⇒  ()
-          case Some(x) ⇒
-            pn.write("<div class=\"docarea\">")
-            DocBody.write(x, pn)
-            pn.write("</div>")
-        }
-
-        if (!mod.varDoc.isEmpty) {
-          pn.write("<div class=\"sect\"><header class=\"sectheader\"><h2>Variables</h2></header>")
-          pn.write("<table><thead><tr><td>Access</td><td>Name</td><td>Exported</td><td class=\"descr\">Description</td></tr></thead>")
-
-          mod.varDoc.foreach(docVar(_, pn))
-
-          pn.write("</table></div>")
-        }
-
-
-        if (!mod.funDoc.isEmpty) {
-          pn.write("<div class=\"sect\"><header class=\"sectheader\"><h2>Functions</h2></header>")
-          pn.write("<table><thead><tr><td>Access</td><td>Name</td><td>Exported</td><td class=\"descr\">Description</td></tr></thead>")
-
-          mod.funDoc.foreach(docFun(_, pn))
-
-          pn.write("</table></div>")
-        }
-
-        pn.write("</body></html>")
-      } finally {
-        pn.close
-      }
-    } finally {
-      fs.close
-    }
-
-    Some(modName)
-  }
-
-
-  /** Documents a function. */
-  private def docFun(v : FunDoc, w : Writer) : Unit = {
-    w.write("<tr><td>")
-    w.write(if (v.isPublic) "public" else "private")
-    w.write("</td><td>")
-    w.write(htmlText(v.name))
-    w.write("</td><td>")
-    v.globalName match {
-      case None ⇒  ()
-      case Some(x) ⇒ w.write(htmlText(x))
-    }
-    w.write("</td><td>")
-    DocBody.write(v.contract, w)
-
-    if (!v.args.isEmpty) {
-      w.write("<div class=\"fnsection\">Arguments:</div><div class=\"fndata\"><table class=\"alist\">")
-      w.write("<thead><tr><td>Name</td><td class=\"descr\">Description</td></tr></thead>")
-      for (a ← v.args) {
-        w.write("<tr><td>")
-        w.write(htmlText(a.name))
-        w.write("</td><td>")
-        DocBody.write(a.doc, w)
-        w.write("</td></tr>")
-      }
-      w.write("</table></div>")
-    }
-
-
-    w.write("<div class=\"fnsection\">Returns:</div><div class=\"fndata\">")
-    DocBody.write(v.ret, w)
-    w.write("</div>")
-    w.write("</td></tr>")
-  }
-
-
-  /** Documents a variable. */
-  private def docVar(v : VarDoc, w : Writer) : Unit = {
-    w.write("<tr><td>")
-    w.write(if (v.isPublic) "public" else "private")
-    w.write("</td><td>")
-    w.write(htmlText(v.name))
-    w.write("</td><td>")
-    v.globalName match {
-      case None ⇒  ()
-      case Some(x) ⇒ w.write(htmlText(x))
-    }
-    w.write("</td><td>")
-    DocBody.write(v.doc, w)
-    w.write("</td></tr>")
+    val moddoc : Seq[String] = s1succs.map(x ⇒
+      DocGen.writeDoc(docDir, x._2.id, x._2.doc, x._2.varDoc, x._2.funDoc))
+    DocGen.writeMeta(moddoc, docDir)
   }
 
 

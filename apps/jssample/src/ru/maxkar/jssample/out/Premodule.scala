@@ -26,7 +26,7 @@ final class Premodule(
     val id : Seq[String],
     val globals : Seq[(String, Symbol)],
     val publicScope : Scope[String, Symbol],
-    val doc : Option[DocBody],
+    val doc : DocBody,
     val varDoc : Seq[VarDoc],
     val funDoc : Seq[FunDoc],
     localScope : Scope[String, Symbol],
