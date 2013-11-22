@@ -9,6 +9,7 @@ import ru.maxkar.lispy._
 
 import ru.maxkar.jssample.ns._
 import ru.maxkar.jssample.att._
+import ru.maxkar.jssample.doc._
 
 /** Simple trace message. */
 abstract sealed class Message
@@ -121,10 +122,21 @@ object Message {
   }
 
 
+  /** Formats a documentation exception. */
+  private def formatDocException(exn : MailformedDoc) : String = {
+    exn match {
+      case BadDocCode(start, _) ⇒ "Mailformed code started at " + formatLocation(start)
+      case UnclosedDocSpecial(start, _) ⇒ "Document special is not closed, opened at " + formatLocation(start)
+      case BadDocSpecial(name, _) ⇒ "Unrecognized document special "
+    }
+  }
+
+
   /** Formats an attribute exception message body. */
   private def formatAttrExceptionBody(exn : MailformedAttribute) : String = {
     exn match {
       case MailformedAccess(_) ⇒ "Mailformed access specifier"
+      case MailformedDocumentation(doc) ⇒ "Mailformed documentation : " + formatDocException(doc)
     }
   }
 
