@@ -9,5 +9,5 @@ import ru.maxkar.scoping.simple._
  * another object.
  */
 final class Symbol(val declaration : ModuleHost) {
-  def resolve() : Expression = Model.variable(this)
+  def resolve() : LeftValue = Model.variable(this)
 }

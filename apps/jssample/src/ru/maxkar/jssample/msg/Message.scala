@@ -58,6 +58,10 @@ final case class UncallableExpression(host : File, pos : TextPosition) extends M
 final case class UnassignableExpression(host : File, pos : TextPosition) extends Message
 
 
+/** Bad map item. */
+final case class BadMapItem(host : File, pos : TextPosition) extends Message
+
+
 /** Duplicate access definition. */
 final case class DuplicateAccessDefinition(host : File, pos : TextPosition) extends Message
 
@@ -180,6 +184,8 @@ object Message {
         stream.println(err(host, pos, "Not callable expression"))
       case UnassignableExpression(host, pos) ⇒
         stream.println(err(host, pos, "Assignment to a non-left-value expression"))
+      case BadMapItem(host, pos) ⇒
+        stream.println(err(host, pos, "Bad map item specifier"))
       case DuplicateAccessDefinition(host, pos) ⇒
         stream.println(err(host, pos, "Duplicate access modifier"))
       case DuplicateFromAttribute(host, pos) ⇒

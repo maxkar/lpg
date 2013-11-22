@@ -41,7 +41,7 @@ private final class AssingVarBlock(
     extends BlockCompiler {
   def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
     cb(assign(
-      variable.resolve.asInstanceOf[LeftValue],
+      variable.resolve,
       ctx.exprs.compile(expr)))
 }
 
@@ -93,6 +93,24 @@ private class ExprBlock(expr : SExpression[BaseItem]) extends BlockCompiler {
 }
 
 
+/** For block compiler. */
+private class ForArray(idxVar : Symbol, arrVar : Symbol, valVar : Symbol,
+      expr : SExpression[BaseItem], tl : BlockCompiler) extends BlockCompiler {
+
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit = {
+    cb(assign(idxVar.resolve, literal(0)))
+    cb(assign(arrVar.resolve, ctx.exprs.compile(expr)))
+    val updExpr = prefixInc(idxVar.resolve)
+    val loopCond = less(idxVar.resolve, member(arrVar.resolve, literal("length")))
+
+    val loadItem = assign(valVar.resolve, member(arrVar.resolve, idxVar.resolve))
+
+    cb(whileWithIterupdate(loopCond, updExpr, loadItem +: tl.compileToSeq(ctx)))
+  }
+}
+
+
+
 
 /** Simple block compiler. */
 object SimpleBlock {
@@ -133,6 +151,15 @@ object SimpleBlock {
           blocks += new WhileBlock(cond, sub(ctx, tl))
         case SList(Seq(SLeaf(BaseId("if"), _), cond, SList(tl1, _), SList(tl2, _)), _) ⇒
           blocks += new IfBlock(cond, sub(ctx, tl1), sub(ctx, tl2))
+        case SList(Seq(SLeaf(BaseId("for-array"), _),
+            iid@SLeaf(BaseId(itr), _), init, tl@_*),_) ⇒
+          val iscope = ctx.newSubBuilder
+          val vr = iscope.mkVar(itr, iid)
+          val lv = iscope.mkAnonVar(x)
+          val av = iscope.mkAnonVar(x)
+          blocks +=
+            new SubScopeBlock(iscope,
+              new ForArray(lv, av, vr, init, sub(ctx, tl)))
         case _ ⇒ blocks += new ExprBlock(x)
       })
 

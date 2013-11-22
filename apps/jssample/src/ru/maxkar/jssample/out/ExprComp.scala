@@ -53,6 +53,23 @@ private[out] class ExprComp(
 
 
 
+  /** Creates a map literal. */
+  private def mkMapLiteral(tl : Seq[SExpression[BaseItem]]) : Expression = {
+    val res = new ArrayBuffer[(String, Expression)]
+
+    tl.foreach(x ⇒ x match {
+        case SList(Seq(SLeaf(BaseId(a), _), e), _) ⇒
+          res += ((a, compile(e)))
+        case SList(Seq(SLeaf(BaseString(a), _), e), _) ⇒
+          res += ((a, compile(e)))
+        case e ⇒ trace.badMapSpecifier(e)
+    })
+
+    return objectliteral(res:_*)
+  }
+
+
+
   /** Compiles an expression. */
   def compile(item : SExpression[BaseItem]) : Expression = {
     item match {
@@ -60,6 +77,8 @@ private[out] class ExprComp(
       case SLeaf(BaseFloating(x, y), _) ⇒ literal(x, y)
       case SLeaf(BaseString(x), _) ⇒ literal(x)
       case SLeaf(BaseId("null"), _) ⇒ exprNull
+      case SLeaf(BaseId("true"), _) ⇒ exprTrue
+      case SLeaf(BaseId("false"), _) ⇒ exprFalse
       case SLeaf(BaseId(x), _) ⇒ resolveId(x, item)
       case SList(Seq(fdn@SLeaf(BaseId("fun"), _),
           SList(args, _),
@@ -69,6 +88,10 @@ private[out] class ExprComp(
           trace.noArgVararg(item)
         val fb = FuncComp.compFunction(host, scope, isvaarg, args, body, trace)
         anonfun(fb.args, fb.vars, fb.funcs, fb.labels, fb.stmt)
+      case SList(Seq(SLeaf(BaseId("mk-array"), _), tl@_*), _) ⇒
+        arrayliteral(tl.map(compile) :_*)
+      case SList(Seq(SLeaf(BaseId("mk-map"), _), tl@_*), _) ⇒
+        mkMapLiteral(tl)
       case SList(Seq(SLeaf(BaseId("if"), _), c, l, r), _) ⇒
         cond(compile(c), compile(l), compile(r))
       case SList(Seq(SLeaf(BaseId(x), _), a, b), _) if BINARY_OPS.contains(x) ⇒

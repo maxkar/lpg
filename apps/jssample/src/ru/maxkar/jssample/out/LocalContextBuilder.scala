@@ -45,6 +45,10 @@ private[out] final class LocalContextBuilder(
   }
 
 
+  /** Creates an anonymous variable. */
+  def mkAnonVar(decl : SExpression[BaseItem]) : Symbol = root.mkVar(decl)
+
+
 
   /** Adds a new label. */
   def mkLabel(name : String, item : SExpression[BaseItem]) : Symbol = {

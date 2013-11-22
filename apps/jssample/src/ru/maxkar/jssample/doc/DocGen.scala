@@ -250,6 +250,7 @@ object DocGen {
     |}
     |.iname {
     |  font-weight: bold;
+    |  white-space: nowrap;
     |}
   """.stripMargin('|')
 }

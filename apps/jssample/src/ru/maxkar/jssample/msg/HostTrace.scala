@@ -67,6 +67,11 @@ trait HostTrace {
     msg(UnassignableExpression(host, locOf(expr)))
 
 
+  /** Bad map specifier callback. */
+  def badMapSpecifier(expr : SExpression[BaseItem]) : Unit =
+    msg(BadMapItem(host, locOf(expr)))
+
+
   /** Duplicate access modifier for an item at given position. */
   def duplicateAccessDefinition(expr : SExpression[BaseItem]) : Unit =
     msg(DuplicateAccessDefinition(host, locOf(expr)))

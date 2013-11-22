@@ -35,10 +35,24 @@ private[out] object FuncComp {
     val root = new RootScopeBuilder(host)
     val lcb = new LocalContextBuilder(trace, host, root)
 
-    args.foreach(x ⇒  x match {
+    var reallyVararg = isVaarg && !args.isEmpty
+
+    var funArgs =
+      if (reallyVararg)
+        args.dropRight(1)
+      else
+        args
+
+    funArgs.foreach(x ⇒  x match {
         case SLeaf(BaseId(id), _) ⇒ lcb.mkArg(id, x)
         case _ ⇒  trace.mailformedDeclaration(x)
       })
+
+    if (reallyVararg)
+      args.last match {
+        case x@SLeaf(BaseId(id), _) ⇒ lcb.mkVar(id, x)
+        case x ⇒  trace.mailformedDeclaration(x)
+      }
 
     val stmtb = SimpleBlock.joinTo(lcb, tl)
 
@@ -46,7 +60,7 @@ private[out] object FuncComp {
     val vs = locCtx.variables
 
     val vaargsinit : Seq[Statement] =
-      if (!isVaarg || args.isEmpty)
+      if (!reallyVararg)
         Seq.empty
       else
         args.last match {

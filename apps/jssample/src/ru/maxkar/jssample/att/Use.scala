@@ -23,7 +23,7 @@ final object Use {
   def parseUse(start : Attributes, inp : Input) : Attributes = {
     inp.dropWhites
     val pos = inp.location.allValues(Input.textPosition).head
-    val tok = inp.charsWhile(Character.isLetter)
+    val tok = inp.charsWhile(isModuleLetter)
     if (tok.isEmpty)
       throw new MailformedAccess(start)
     Attributes.singleton(MODULE, new ModuleRef(tok, pos))

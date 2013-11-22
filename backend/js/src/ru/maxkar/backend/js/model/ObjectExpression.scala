@@ -33,6 +33,7 @@ private[model] final class ObjectExpression(items : Seq[(String, Expression)])
     while (ptr < key.length) {
       if (!Character.isJavaIdentifierPart(key.charAt(ptr)))
         return false
+      ptr += 1
     }
 
     true
