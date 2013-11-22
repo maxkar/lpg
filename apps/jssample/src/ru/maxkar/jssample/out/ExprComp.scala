@@ -92,6 +92,14 @@ private[out] class ExprComp(
         arrayliteral(tl.map(compile) :_*)
       case SList(Seq(SLeaf(BaseId("mk-map"), _), tl@_*), _) ⇒
         mkMapLiteral(tl)
+      case SList(Seq(SLeaf(BaseId("new"), _), iname, tl@_*), _) ⇒
+        val head = compile(iname)
+        if (!head.isInstanceOf[NonprimitiveExpression]) {
+          trace.unconstructableExpression(iname)
+          tl.foreach(compile)
+          failure
+        } else
+          create(head.asInstanceOf[NonprimitiveExpression], tl.map(compile):_*)
       case SList(Seq(SLeaf(BaseId("if"), _), c, l, r), _) ⇒
         cond(compile(c), compile(l), compile(r))
       case SList(Seq(SLeaf(BaseId(x), _), a, b), _) if BINARY_OPS.contains(x) ⇒

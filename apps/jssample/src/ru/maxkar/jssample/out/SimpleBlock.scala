@@ -54,6 +54,13 @@ private final class RetBlock(expr : SExpression[BaseItem])
 }
 
 
+private final class RetNoneBlock() extends BlockCompiler {
+
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
+    cb(returnNothing)
+}
+
+
 private final class WhenBlock(
     cond : SExpression[BaseItem], tl : BlockCompiler)
     extends BlockCompiler {
@@ -110,6 +117,14 @@ private class ForArray(idxVar : Symbol, arrVar : Symbol, valVar : Symbol,
 }
 
 
+/** Catch block compiler. */
+private class CatchBlock(exnVar : Symbol, exn: BlockCompiler, body : BlockCompiler)
+    extends BlockCompiler {
+
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit =
+    cb(tryCatch(body.compileToSeq(ctx), exnVar, exn.compileToSeq(ctx)))
+}
+
 
 
 /** Simple block compiler. */
@@ -143,6 +158,8 @@ object SimpleBlock {
           ctx.mkFunction(fname, vaarg, x, args, tl)
         case SList(Seq(SLeaf(BaseId("ret"), _), expr), _) ⇒
           blocks += new RetBlock(expr)
+        case SList(Seq(SLeaf(BaseId("ret"), _)), _) ⇒
+          blocks += new RetNoneBlock
         case SList(Seq(SLeaf(BaseId("do"), _), tl@_*), _) ⇒
           blocks += sub(ctx, tl)
         case SList(Seq(SLeaf(BaseId("when"), _), cond, tl@_*), _) ⇒
@@ -160,6 +177,16 @@ object SimpleBlock {
           blocks +=
             new SubScopeBlock(iscope,
               new ForArray(lv, av, vr, init, sub(ctx, tl)))
+        case SList(Seq(SLeaf(BaseId("on-exn"), _),
+              exnId@SLeaf(BaseId(exn), _),
+              SList(exnInst, _), tl@_*), _) ⇒
+          val iscope = ctx.newSubBuilder
+          val evar = iscope.mkAutoVar(exn, exnId)
+          blocks +=
+            new CatchBlock(evar,
+              new SubScopeBlock(iscope,
+                sub(iscope, exnInst)),
+              sub(ctx, tl))
         case _ ⇒ blocks += new ExprBlock(x)
       })
 

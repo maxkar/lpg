@@ -72,6 +72,11 @@ trait HostTrace {
     msg(BadMapItem(host, locOf(expr)))
 
 
+  /** Notifies about unconstructable expression. */
+  def unconstructableExpression(expr : SExpression[BaseItem]) : Unit=
+    msg(UnconstructableExpression(host, locOf(expr)))
+
+
   /** Duplicate access modifier for an item at given position. */
   def duplicateAccessDefinition(expr : SExpression[BaseItem]) : Unit =
     msg(DuplicateAccessDefinition(host, locOf(expr)))

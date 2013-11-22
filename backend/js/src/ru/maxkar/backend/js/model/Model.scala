@@ -150,8 +150,8 @@ final object Model {
 
   /** Member access expression. */
   def member(base : Expression, item : Expression)
-      : NonprimitiveExpression =
-    new NonprimitiveExpression {
+      : LeftValue =
+    new LeftValue {
       val priority : Int = 0
       val basebrackets = base.priority > priority
       override val canStartStatement : Boolean = base.canStartStatement || basebrackets
@@ -571,6 +571,11 @@ final object Model {
   /** Return statement. */
   def returns(value : Expression) : Statement =
     kwdStmt("return", value)
+
+
+  /** Return-nothing statement. */
+  def returnNothing() : Statement =
+    textStmt("return")
 
 
   /** Switch statement. */

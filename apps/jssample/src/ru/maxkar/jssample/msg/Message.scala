@@ -62,6 +62,10 @@ final case class UnassignableExpression(host : File, pos : TextPosition) extends
 final case class BadMapItem(host : File, pos : TextPosition) extends Message
 
 
+/** Unconstructable item specifier. */
+final case class UnconstructableExpression(host : File, pos : TextPosition) extends Message
+
+
 /** Duplicate access definition. */
 final case class DuplicateAccessDefinition(host : File, pos : TextPosition) extends Message
 
@@ -186,6 +190,8 @@ object Message {
         stream.println(err(host, pos, "Assignment to a non-left-value expression"))
       case BadMapItem(host, pos) ⇒
         stream.println(err(host, pos, "Bad map item specifier"))
+      case UnconstructableExpression(host, pos) ⇒
+        stream.println(err(host, pos, "Cannot construct instance of primitive expression"))
       case DuplicateAccessDefinition(host, pos) ⇒
         stream.println(err(host, pos, "Duplicate access modifier"))
       case DuplicateFromAttribute(host, pos) ⇒

@@ -27,14 +27,12 @@ final object Access {
   val ATTR = new Attribute[Access]("Access specifier")
 
 
-  /** Parses an attribute. */
-  def parse(start : Attributes, inp : Input) : Attributes = {
-    inp.dropWhites
-    val tok = inp.charsWhile(Character.isLetter)
-    tok match {
-      case "private" ⇒ Attributes.singleton(ATTR, Private)
-      case "public" ⇒ Attributes.singleton(ATTR, Public)
-      case _ ⇒ throw new MailformedAccess(start)
-    }
-  }
+  /** Parses a private access. */
+  def parsePrivate(start : Attributes, inp : Input) : Attributes =
+    Attributes.singleton(ATTR, Private)
+
+
+  /** Parses a private access. */
+  def parsePublic(start : Attributes, inp : Input) : Attributes =
+    Attributes.singleton(ATTR, Public)
 }

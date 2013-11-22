@@ -51,6 +51,11 @@ final class RootScopeBuilder(host : File) {
   }
 
 
+  /** Creates a new automatical variable. */
+  def mkAutoVar(item : SExpression[BaseItem]) : Symbol =
+    new Symbol(new ModuleHost(host, locOf(item)))
+
+
   /** Creates a new local label. */
   def mkLabel(item : SExpression[BaseItem]) : Symbol = {
     val res = new Symbol(new ModuleHost(host, locOf(item)))

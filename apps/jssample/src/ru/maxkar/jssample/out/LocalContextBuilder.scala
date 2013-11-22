@@ -49,6 +49,13 @@ private[out] final class LocalContextBuilder(
   def mkAnonVar(decl : SExpression[BaseItem]) : Symbol = root.mkVar(decl)
 
 
+  /** Creates a new automatic variable. */
+  def mkAutoVar(name : String, decl : SExpression[BaseItem]) : Symbol = {
+    val res = root.mkAutoVar(decl)
+    varb.offer(name, res)
+    res
+  }
+
 
   /** Adds a new label. */
   def mkLabel(name : String, item : SExpression[BaseItem]) : Symbol = {
