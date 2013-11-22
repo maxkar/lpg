@@ -41,12 +41,12 @@ final class Processor(implicit executor : Executor) {
     val res = new ArrayBuffer[Hunk[Res]]
 
     def acceptFile(f : File, path : Seq[String]) : Unit = {
-      if (!f.getName.endsWith(".lpg"))
+      if (!f.getName.endsWith(".lpg1"))
         return
       if (path.isEmpty)
         return
       val left = path.last
-      val modname = left.substring(0, left.length - 4)
+      val modname = left.substring(0, left.length - 5)
       val rpath = path.dropRight(1) :+ modname
       res += processFile(f, rpath)
     }
