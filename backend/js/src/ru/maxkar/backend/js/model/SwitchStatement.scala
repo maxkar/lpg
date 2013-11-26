@@ -5,7 +5,7 @@ import ru.maxkar.backend.js.out.CompactContext
 private[model] final class SwitchStatement(
       chooser : Expression,
       rmap : Seq[(Seq[Expression], Seq[Statement])],
-      onElse : Option[Seq[Expression]])
+      onElse : Option[Seq[Statement]])
     extends Statement {
 
   private[model] def writeStatement(ctx : CompactContext) : Unit = {

@@ -4,6 +4,8 @@ import java.util.concurrent._
 
 import ru.maxkar.lispy.Attribute
 
+import ru.maxkar.jssample.ns._
+
 import ru.maxkar.jssample.msg._
 import ru.maxkar.jssample.doc.DocGen
 
@@ -46,7 +48,7 @@ final object Runner {
 
 
     val s2runs = s1succs.map(x ⇒  exec {
-        (x._1, x._2.compile(platf.scope, modmap, x._1))
+        (x._1, (x._2.id, x._2.module, x._2.after, x._2.compile(platf.scope, modmap, x._1)))
       })
 
     val s2succs = mwait(s2runs)
@@ -149,17 +151,75 @@ final object Runner {
   }
 
 
+  /** Prints a cyclic dependency. */
+  private def printCycle(items : java.util.Collection[String], key : String) : Unit = {
+    val itr = items.iterator
+    while (itr.next != key) {}
+
+    System.err.print("ERROR: Cyclic module order: ")
+    System.err.print(key)
+    System.err.print(" → ")
+    while (itr.hasNext) {
+      System.err.print(itr.next)
+      System.err.print(" → ")
+    }
+    System.err.println(key)
+  }
+
+
+  /** Performs a topological sort of items. */
+  private def modSort[T](items : Seq[(Seq[String], File, Set[ModuleRef], T)]) : Seq[T] = {
+    val res = new ArrayBuffer[T]
+    val stack = new java.util.LinkedHashSet[String]
+    val found = new java.util.HashSet[String]
+
+    val imap = items.map(x ⇒ (x._1.mkString("."), (x._2, x._3, x._4))).toMap
+    var fails = false
+
+    def proc(key : String, item : (File, Set[ModuleRef], T)) : Unit = {
+      if (!found.contains(key)) {
+        if (!stack.add(key)) {
+            fails = true
+            printCycle(stack, key)
+            found.add(key)
+        } else {
+          for (dep ← item._2)
+            imap.get(dep.name) match {
+              case None ⇒ System.err.println(
+                MessageFormat.err(item._1, dep.loc, " Reference to unexisting module " + dep.name))
+                fails = true
+              case Some(n) ⇒
+                proc(dep.name, n)
+            }
+
+          res += item._3
+          stack.remove(key)
+          found.add(key)
+        }
+      }
+    }
+
+    for ((k, v) ← imap)
+      proc(k, v)
+
+    if (fails)
+      System.exit(5)
+
+    res
+  }
+
+
   /** Collects a js object. */
   private def collectjs(
         globs : Map[AnyRef, String],
-        items : Seq[(Set[out.Symbol], Seq[(out.Symbol, FunctionBody)], Seq[Statement])])
+        items : Seq[(Seq[String], File, Set[ModuleRef], (Set[out.Symbol], Seq[(out.Symbol, FunctionBody)], Seq[Statement]))])
       : JSFile = {
 
     var a = Set.empty[AnyRef]
     var b = Seq.empty[(AnyRef, FunctionBody)]
     var c = Seq.empty[Statement]
 
-    items.foreach(x ⇒  {
+    modSort(items).foreach(x ⇒  {
         a ++= x._1
         b ++= x._2
         c ++= x._3

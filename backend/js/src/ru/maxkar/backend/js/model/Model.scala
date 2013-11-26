@@ -581,7 +581,7 @@ final object Model {
   /** Switch statement. */
   def switchof(cond : Expression,
       rmap : Seq[(Seq[Expression], Seq[Statement])],
-      onElse : Option[Seq[Expression]]) : Statement =
+      onElse : Option[Seq[Statement]]) : Statement =
     new SwitchStatement(cond, rmap, onElse)
 
 

@@ -16,7 +16,8 @@ final object Use {
   def isModuleLetter(chr : Char) : Boolean =
     Character.isLetter(chr) ||
     Character.isDigit(chr) ||
-    chr == '.'
+    chr == '.' || chr == '-' ||
+    chr == '_'
 
 
   /** Parses a "use" attribute. */

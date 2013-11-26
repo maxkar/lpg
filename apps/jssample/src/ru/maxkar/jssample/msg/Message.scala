@@ -66,6 +66,14 @@ final case class BadMapItem(host : File, pos : TextPosition) extends Message
 final case class UnconstructableExpression(host : File, pos : TextPosition) extends Message
 
 
+/** Mailformed case target. */
+final case class MailformedCaseTarget(host : File, pos : TextPosition) extends Message
+
+
+/** Duplicate default case. */
+final case class DuplicateDefaultCase(host : File, pos : TextPosition, prevPos : TextPosition) extends Message
+
+
 /** Duplicate access definition. */
 final case class DuplicateAccessDefinition(host : File, pos : TextPosition) extends Message
 
@@ -192,6 +200,11 @@ object Message {
         stream.println(err(host, pos, "Bad map item specifier"))
       case UnconstructableExpression(host, pos) ⇒
         stream.println(err(host, pos, "Cannot construct instance of primitive expression"))
+      case MailformedCaseTarget(host, pos) ⇒
+        stream.println(err(host, pos, "Mailformed case target"))
+      case DuplicateDefaultCase(host, pos, ppo1) ⇒
+        stream.println(err(host, pos, "Duplicate default case target, previous definition at " +
+          formatLocation(ppo1)))
       case DuplicateAccessDefinition(host, pos) ⇒
         stream.println(err(host, pos, "Duplicate access modifier"))
       case DuplicateFromAttribute(host, pos) ⇒

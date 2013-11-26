@@ -76,6 +76,13 @@ trait HostTrace {
   def unconstructableExpression(expr : SExpression[BaseItem]) : Unit=
     msg(UnconstructableExpression(host, locOf(expr)))
 
+  /** Notifies about mailformed case clasuse. */
+  def mailformedCaseClause(expr : SExpression[BaseItem]) : Unit =
+    msg(MailformedCaseTarget(host, locOf(expr)))
+
+  /** Duplicate default clasuse. */
+  def duplicateDefaultCase(expr : SExpression[BaseItem], prev : SExpression[BaseItem]) : Unit =
+    msg(DuplicateDefaultCase(host, locOf(expr), locOf(prev)))
 
   /** Duplicate access modifier for an item at given position. */
   def duplicateAccessDefinition(expr : SExpression[BaseItem]) : Unit =

@@ -206,7 +206,8 @@ private[out] final class PremoduleBuilder(trace : HostTrace, module : java.io.Fi
   /** Ends a building. */
   def end(e : SExpression[BaseItem]) : Premodule = {
 
-    new Premodule(id, globals, pubScope.scope,
+    new Premodule(id, e.atts.allValues(After.ATTR),
+      globals, pubScope.scope,
       docOf(e), varDoc, funDoc,
       names.scope, varInitializers,
       allFunctions, allVars, e, module)

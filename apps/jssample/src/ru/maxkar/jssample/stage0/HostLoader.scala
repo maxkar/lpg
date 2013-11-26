@@ -22,7 +22,8 @@ private [stage0] final object HostLoader {
       "from" → Use.parseFromUse,
       "export" → Export.parse,
       "doc" → Doc.parse,
-      "vararg" → Vararg.parse
+      "vararg" → Vararg.parse,
+      "after" → After.parse
     ).get)
 
 

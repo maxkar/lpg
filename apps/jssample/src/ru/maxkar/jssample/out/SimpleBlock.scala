@@ -126,6 +126,24 @@ private class CatchBlock(exnVar : Symbol, exn: BlockCompiler, body : BlockCompil
 }
 
 
+/** Case block compiler. */
+private class CaseBlock(
+      expr : SExpression[BaseItem],
+      cases : Seq[(Seq[SExpression[BaseItem]], BlockCompiler)],
+      deflt : Option[BlockCompiler])
+    extends BlockCompiler {
+
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit = {
+    cb(switchof(
+        ctx.exprs.compile(expr),
+        cases.map(x ⇒ (
+            x._1.map(ctx.exprs.compile),
+            x._2.compileToSeq(ctx))),
+        deflt.map(x ⇒ x.compileToSeq(ctx))))
+  }
+}
+
+
 
 /** Simple block compiler. */
 object SimpleBlock {
@@ -187,6 +205,30 @@ object SimpleBlock {
               new SubScopeBlock(iscope,
                 sub(iscope, exnInst)),
               sub(ctx, tl))
+        case SList(Seq(SLeaf(BaseId("case"), _), expr, tl@_*), _) ⇒
+          var dflt : Option[(SExpression[BaseItem], BlockCompiler)] = None
+          var cases = new ArrayBuffer[(Seq[SExpression[BaseItem]], BlockCompiler)]
+
+          def mkSub(items : Seq[SExpression[BaseItem]]) : BlockCompiler = {
+            val iscope = ctx.newSubBuilder
+            new SubScopeBlock(iscope, sub(iscope, items))
+          }
+
+          tl.foreach(x ⇒  x match {
+            case a@SList(Seq(SList(Seq(), _), commands@_*), _) ⇒
+              dflt match {
+                case None ⇒
+                  dflt = Some((a, mkSub(commands)))
+                case Some((p, _)) ⇒
+                  ctx.trace.duplicateDefaultCase(p, a)
+              }
+            case SList(Seq(SList(exprs, _), commands@_*), _) ⇒
+              cases += ((exprs, mkSub(commands)))
+            case _ ⇒
+              ctx.trace.mailformedCaseClause(x)
+          })
+
+        blocks += new CaseBlock(expr, cases, dflt.map(_._2))
         case _ ⇒ blocks += new ExprBlock(x)
       })
 

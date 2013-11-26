@@ -79,6 +79,7 @@ private[out] class ExprComp(
       case SLeaf(BaseId("null"), _) ⇒ exprNull
       case SLeaf(BaseId("true"), _) ⇒ exprTrue
       case SLeaf(BaseId("false"), _) ⇒ exprFalse
+      case SLeaf(BaseId("undefined"), _) ⇒ undefined
       case SLeaf(BaseId(x), _) ⇒ resolveId(x, item)
       case SList(Seq(fdn@SLeaf(BaseId("fun"), _),
           SList(args, _),

@@ -24,6 +24,7 @@ import scala.collection.mutable.ArrayBuffer
  */
 final class Premodule(
     val id : Seq[String],
+    val after : Set[ModuleRef],
     val globals : Seq[(String, Symbol)],
     val publicScope : Scope[String, Symbol],
     val doc : DocBody,
