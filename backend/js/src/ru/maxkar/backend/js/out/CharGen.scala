@@ -13,7 +13,7 @@ private[out] object CharGen {
 
   /** Milddle letters generator. */
   val middleLetter : IdCharGen = strGen(
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZi0123456789")
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
 
   /** Generates a characters from the string. */
