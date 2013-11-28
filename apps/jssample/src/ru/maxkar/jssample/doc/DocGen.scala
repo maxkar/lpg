@@ -17,7 +17,7 @@ object DocGen {
         pn.write("<link rel=\"stylesheet\" href=\"style.css\" type=\"text/css\"><title>JSLPG documentation")
         pn.write("</title></head><body class=\"framedoc\">")
         pn.write("<div class=\"pkglist\"><h1>Packages</h1>")
-        for (x ← moddoc) {
+        for (x ← moddoc.sorted) {
           pn.write("<div><a target=\"moditem\" href=\"_")
           pn.write(html(x))
           pn.write(".html\">")
