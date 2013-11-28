@@ -103,8 +103,9 @@ private[out] class ExprComp(
           create(head.asInstanceOf[NonprimitiveExpression], tl.map(compile):_*)
       case SList(Seq(SLeaf(BaseId("if"), _), c, l, r), _) ⇒
         cond(compile(c), compile(l), compile(r))
-      case SList(Seq(SLeaf(BaseId(x), _), a, b), _) if BINARY_OPS.contains(x) ⇒
-        BINARY_OPS(x)(compile(a), compile(b))
+      case SList(Seq(SLeaf(BaseId(x), _), a, b, tl@_*), _) if BINARY_OPS.contains(x) ⇒
+        val op = BINARY_OPS(x)
+        tl.foldLeft(op(compile(a), compile(b)))((e, f) ⇒ op(e, compile(f)))
       case SList(Seq(SLeaf(BaseId(x), _), a, b), _) if BINARY_ASSIGN.contains(x) ⇒
         val lv = compile(a)
         if (!lv.isInstanceOf[LeftValue]) {
