@@ -117,6 +117,16 @@ private class ForArray(idxVar : Symbol, arrVar : Symbol, valVar : Symbol,
 }
 
 
+/** For-key block compiler. */
+private class ForKey(valVar : Symbol,
+      expr : SExpression[BaseItem], tl : BlockCompiler) extends BlockCompiler {
+
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit = {
+    cb(forIn(valVar.resolve, ctx.exprs.compile(expr), tl.compileToSeq(ctx)))
+  }
+}
+
+
 /** Catch block compiler. */
 private class CatchBlock(exnVar : Symbol, exn: BlockCompiler, body : BlockCompiler)
     extends BlockCompiler {
@@ -195,6 +205,13 @@ object SimpleBlock {
           blocks +=
             new SubScopeBlock(iscope,
               new ForArray(lv, av, vr, init, sub(ctx, tl)))
+        case SList(Seq(SLeaf(BaseId("for-key"), _),
+            iid@SLeaf(BaseId(itr), _), init, tl@_*),_) ⇒
+          val iscope = ctx.newSubBuilder
+          val vr = iscope.mkVar(itr, iid)
+          blocks +=
+            new SubScopeBlock(iscope,
+              new ForKey(vr, init, sub(ctx, tl)))
         case SList(Seq(SLeaf(BaseId("on-exn"), _),
               exnId@SLeaf(BaseId(exn), _),
               SList(exnInst, _), tl@_*), _) ⇒
