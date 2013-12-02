@@ -35,6 +35,8 @@ private[out] object FuncComp {
     val root = new RootScopeBuilder(host)
     val lcb = new LocalContextBuilder(trace, host, root)
 
+    val functab = new ArrayBuffer[(AnyRef, FunctionBody)]
+
     var reallyVararg = isVaarg && !args.isEmpty
 
     var funArgs =
@@ -56,7 +58,7 @@ private[out] object FuncComp {
 
     val stmtb = SimpleBlock.joinTo(lcb, tl)
 
-    val locCtx = lcb.end(scope)
+    val locCtx = lcb.end(scope, (x, y) ⇒ functab += ((x, y)))
     val vs = locCtx.variables
 
     val vaargsinit : Seq[Statement] =
@@ -81,8 +83,7 @@ private[out] object FuncComp {
     new FunctionBody(
       root.getArgs,
       root.getVars,
-      root.getFuncs.map(x ⇒  (x._1,
-        compFunction(host, vs, x._2, x._3, x._4, trace))),
+      functab,
       root.getLabels,
       vaargsinit ++ stmtb.compileToSeq(locCtx))
   }

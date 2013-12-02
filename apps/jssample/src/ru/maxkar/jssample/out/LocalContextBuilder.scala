@@ -4,12 +4,13 @@ import ru.maxkar.scoping.simple._
 
 import ru.maxkar.jssample.msg.HostTrace
 
+import ru.maxkar.backend.js.model._
 import ru.maxkar.lispy._
 
 /** Builder for the local context. */
 private[out] final class LocalContextBuilder(
     val trace : HostTrace,
-    host : java.io.File,
+    val host : java.io.File,
     root : RootScopeBuilder) {
 
 
@@ -65,28 +66,14 @@ private[out] final class LocalContextBuilder(
   }
 
 
-  /** Adds a function. */
-  def mkFunction(
-        name : String,
-        vaarg : Boolean,
-        defn : SExpression[BaseItem],
-        args : Seq[SExpression[BaseItem]],
-        body : Seq[SExpression[BaseItem]])
-      : Symbol = {
-    val res = root.mkFunction(defn, vaarg, args, body)
-    varb.offer(name, res)
-    res
-  }
-
-
   /** Creates a new subcontext. */
   def newSubBuilder() : LocalContextBuilder =
     new LocalContextBuilder(trace, host, root)
 
 
   /** Ends a building. */
-  def end(parent : SymbolScope) : LocalContext =
-    new LocalContext(parent.subscope(varb.scope), labb.scope, trace, host)
+  def end(parent : SymbolScope, funcImpl : (Symbol, FunctionBody) ⇒ Unit) : LocalContext =
+    new LocalContext(parent.subscope(varb.scope), labb.scope, trace, host, funcImpl)
 
 
   /** Ends in a related context. */
@@ -94,5 +81,5 @@ private[out] final class LocalContextBuilder(
     new LocalContext(
       other.variables.subscope(varb.scope),
       Scope.chain(other.labels, labb.scope),
-      trace, host)
+      trace, host, other.funcImpl)
 }

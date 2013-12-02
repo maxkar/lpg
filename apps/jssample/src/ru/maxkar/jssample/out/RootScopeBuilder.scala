@@ -63,22 +63,7 @@ final class RootScopeBuilder(host : File) {
     res
   }
 
-
-  /** Creates a new local function. */
-  def mkFunction(
-        defn : SExpression[BaseItem],
-        isvaarg : Boolean,
-        args : Seq[SExpression[BaseItem]],
-        body : Seq[SExpression[BaseItem]])
-      : Symbol = {
-    val res = new Symbol(new ModuleHost(host, locOf(defn)))
-    funcs += ((res, isvaarg, args, body))
-    res
-  }
-
   def getArgs() : Seq[Symbol] = args
   def getVars() : Seq[Symbol] = locals
   def getLabels() : Seq[Symbol] = labels
-  def getFuncs() : Seq[(Symbol, Boolean, Seq[SExpression[BaseItem]], Seq[SExpression[BaseItem]])] =
-    funcs
 }

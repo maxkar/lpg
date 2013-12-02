@@ -12,6 +12,8 @@ import ru.maxkar.backend.js.model.Model._
 import ru.maxkar.scoping.simple._
 import ru.maxkar.scoping.simple.Scope._
 
+import ru.maxkar.jssample.msg.HostTrace
+
 import java.io.File
 
 import scala.collection.mutable.ArrayBuffer
@@ -154,6 +156,23 @@ private class CaseBlock(
 }
 
 
+/** Function block compiler. */
+private class FuncBlock (
+      key : Symbol,
+      host : java.io.File,
+      isVaarg : Boolean,
+      args : Seq[SExpression[BaseItem]],
+      tl : Seq[SExpression[BaseItem]],
+      trace : HostTrace)
+    extends BlockCompiler {
+
+  def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit = {
+    ctx.funcImpl(key, FuncComp.compFunction(host, ctx.variables,
+      isVaarg, args, tl, trace))
+  }
+}
+
+
 
 /** Simple block compiler. */
 object SimpleBlock {
@@ -183,7 +202,8 @@ object SimpleBlock {
           val vaarg = !dfn.atts.allValues(Vararg.ATTR).isEmpty
           if (vaarg && args.isEmpty)
             ctx.trace.noArgVararg(x)
-          ctx.mkFunction(fname, vaarg, x, args, tl)
+          var fkey = ctx.mkAutoVar(fname, dfn)
+          blocks += new FuncBlock(fkey, ctx.host, vaarg, args, tl, ctx.trace)
         case SList(Seq(SLeaf(BaseId("ret"), _), expr), _) ⇒
           blocks += new RetBlock(expr)
         case SList(Seq(SLeaf(BaseId("ret"), _)), _) ⇒
