@@ -20,12 +20,14 @@ syntax match DocOperator /{\s*}/
 syntax match MarkupChar /[()]/
 syntax match Number /\d\+\(.\d\+\([Ee][+-]\?\d\+\)\?\)\?/
 syntax match Identifier /\K\k*/
-syntax keyword Keyword var def fun if ret
+syntax keyword Keyword var def fun if ret mk-map mk-array true false null when on-exn while
+      \ for-array case
 syntax region String start=+"+ end=+"+ skip=+\(^\s*\|\\\)"+
 
-syntax match KeywordAttr /{\(private\|public\|vararg\)\s*}/ contains=SpecialChars
+syntax match KeywordAttr /{\(private\|public\|vararg\|export\)\s*}/ contains=SpecialChars
 syntax match SpecialChars /[{}]/ contained containedin=DocOperatorA
 
+syntax match ImportSpec /{\(use\|from\|export\|after\):\?\s* [^}]*}/
 
 highlight MarkupChar guifg=#999999 ctermfg=5
 highlight Identifier guifg=#FFFFFF ctermfg=16
@@ -37,6 +39,7 @@ highlight DocItalic guifg=#80A0FF ctermfg=5 term=italic cterm=italic gui=italic
 highlight DocBoldItalic guifg=#80A0FF ctermfg=5 term=bold,italic cterm=bold,italic gui=bold,italic
 highlight link DocItalicBold DocBoldItalic
 highlight DocOperator guifg=#FF80FF ctermfg=5
+highlight ImportSpec guifg=#FF80FF ctermfg=4
 
 highlight link KeywordAttr Keyword
 highlight link SpecialChars MarkupChar
