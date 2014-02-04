@@ -4,20 +4,28 @@ import java.math.BigInteger
 import java.math.BigDecimal
 
 import ru.maxkar.backend.js.out.CompactContext
+import ru.maxkar.backend.js.out.writer.Writer
+import ru.maxkar.backend.js.out.writer.ContextWriter
+
+import scala.language.implicitConversions
+import scala.collection.mutable.ArrayBuffer
 
 /** Model element factories.
  * Lacks support of regular expressions at this point.
  */
 final object Model {
 
+  private[model] type OutFragment = CompactContext ⇒ Unit
+
+  /** Output typeclass. */
+  private[model] val outClass : Writer[OutFragment] =
+    new ContextWriter((s, ctx) ⇒  ctx.write(s))
+
 
   /** Failure expression. */
   val failure : LeftValue =
-    new LeftValue {
-      val priority = 0
-      def writeExpression(ctx : CompactContext) : Unit =
-        throw new IllegalStateException("Cannot write failure!")
-    }
+    new LeftValue(0, ctx ⇒
+        throw new IllegalStateException("Cannot write failure!"))
 
 
   /** Boolean "true" expression. */
@@ -45,12 +53,15 @@ final object Model {
       localFuncs : Seq[(AnyRef, FunctionBody)],
       labels : Seq[AnyRef],
       body : Seq[Statement]) : (AnyRef, FunctionBody) =
-    (id, new FunctionBody(args, locals, localFuncs, labels, body))
+    (id, mkFunctionBody(args, locals, localFuncs, labels, body))
 
 
   /** Creates a string expression. */
   def literal(expr : String) : Expression = {
-    new StringExpression(expr)
+    val memberAccessor =
+      if (validSimpleId(expr)) Some(expr) else None
+    val quoted = quoteString(expr)
+    new Expression(0, quoted, simpleMemberAccessor = memberAccessor)
   }
 
 
@@ -86,28 +97,33 @@ final object Model {
 
   /** Creates an array expression. */
   def arrayliteral(elts : Expression*) : Expression =
-    new Expression {
-      val priority = 0
-      def writeExpression(ctx : CompactContext) : Unit = {
-        ctx.write('[')
-        ctx.sepby[Expression](elts, ',', _.writeExpressionCommaSafe(ctx))
-        ctx.write(']')
-      }
-  }
+    new Expression(0, outClass.seq(
+      "[", sepBy(",", elts.map(commaSafe)), "]"))
 
 
   /** Creates an object literal. */
   def objectliteral(elts : (String, Expression)*) : Expression =
-    new ObjectExpression(elts)
+    new Expression(0, outClass.seq(
+        "{", sepBy(",", elts.map(writerForMapEntry)), "}"
+      ), canStartStatement = false)
+
+
+  /**
+   * Creates writer for the map entry.
+   */
+  private def writerForMapEntry(entry : (String, Expression)) : OutFragment =
+    outClass.seq(
+      if (validSimpleId(entry._1))
+        outClass.token(entry._1)
+      else
+        outClass.token(quoteString(entry._1)),
+      ":", commaSafe(entry._2)
+    )
 
 
   /** Creates a reference to a variable in outer scope. */
   def variable(ref : AnyRef) : LeftValue =
-    new LeftValue {
-      val priority = 0
-      def writeExpression(ctx : CompactContext) : Unit =
-        ctx.writeVariable(ref)
-    }
+    new LeftValue(0, varWriter(ref))
 
 
   /** Creates an anonymous local function. */
@@ -116,15 +132,10 @@ final object Model {
       labels : Seq[AnyRef],
       body : Seq[Statement]) : Expression = {
 
-    val fb = new FunctionBody(args, locals, localFuncs, labels, body)
-    new Expression {
-      val priority = 0
-      override val canStartStatement = false
-      def writeExpression(ctx : CompactContext) : Unit = {
-        ctx.write("function")
-        fb.writeTo(ctx)
-      }
-    }
+    val fb = mkFunctionBody(args, locals, localFuncs, labels, body)
+    new Expression(0,
+      outClass.seq("function", fb.writer),
+      canStartStatement = false)
   }
 
 
@@ -133,66 +144,44 @@ final object Model {
       localFuncs : Seq[(AnyRef, FunctionBody)],
       labels : Seq[AnyRef],
       body : Seq[Statement]) : Expression = {
-
-    val fb = new FunctionBody(args, locals, localFuncs, labels, body)
-    new Expression {
-      val priority = 0
-      override val canStartStatement = false
-      def writeExpression(baseCtx : CompactContext) : Unit = {
-        val ctx = baseCtx.sub(Set(id), labels)
-        ctx.write("function ")
-        ctx.writeVariable(id)
-        fb.writeTo(ctx)
-      }
-    }
+    val fb = mkFunctionBody(args, locals, localFuncs, labels, body)
+    new Expression(0,
+      subFunction(Set(id), labels,
+        outClass.seq("function ", varWriter(id), fb.writer)),
+      canStartStatement = false)
   }
 
 
   /** Member access expression. */
   def member(base : Expression, item : Expression)
-      : LeftValue =
-    new LeftValue {
-      val priority : Int = 0
-      val basebrackets = base.priority > priority
-      override val canStartStatement : Boolean = base.canStartStatement || basebrackets
-      def writeExpression(ctx : CompactContext) : Unit = {
-        ctx.bracketed(basebrackets, '(', ')', base.writeExpression(ctx))
-        item.writeAsMemberAccessor(ctx)
-      }
-    }
-
+      : LeftValue = {
+    val basebrackets = base.priority > 0
+    new LeftValue(0,
+      outClass.seq(
+        bracketed(basebrackets, "(", ")", base.writer),
+        memberAccessorWriter(item)),
+      canStartStatement =  base.canStartStatement || basebrackets)
+  }
 
   /** Creates a new instance creation expression. */
   def create(base : NonprimitiveExpression, args : Expression*)
       : NonprimitiveExpression =
-    new NonprimitiveExpression {
-      val priority : Int = 1
-      def writeExpression(ctx : CompactContext) : Unit = {
-        ctx.write("new ")
-        ctx.bracketed(base.priority > priority, '(', ')',
-          base.writeExpression(ctx))
-
-        ctx.write('(')
-        ctx.sepby[Expression](args, ',', _.writeExpressionCommaSafe(ctx))
-        ctx.write(')')
-      }
-    }
+    new NonprimitiveExpression(1, outClass.seq(
+        "new ",
+        bracketed(base.priority > 1, "(", ")", base.writer),
+        "(", sepBy(",", args.map(commaSafe)), ")"
+      ))
 
 
   /** Writes a function call. */
   def call(base : NonprimitiveExpression, args : Expression*)
-      : NonprimitiveExpression =
-    new NonprimitiveExpression {
-      val priority = 2
-      val fnbrackets = base.priority > priority
-      override val canStartStatement = base.canStartStatement || fnbrackets
-      def writeExpression(ctx : CompactContext) : Unit = {
-        ctx.bracketed(fnbrackets, '(', ')', base.writeExpression(ctx))
-        ctx.write('(')
-        ctx.sepby[Expression](args, ',', _.writeExpressionCommaSafe(ctx))
-        ctx.write(')')
-      }
-    }
+      : NonprimitiveExpression = {
+    val fnbrackets = base.priority > 2
+    new NonprimitiveExpression(2, outClass.seq(
+        bracketed(fnbrackets, "(", ")", base.writer),
+        "(", sepBy(",", args.map(commaSafe)), ")"
+      ), canStartStatement = base.canStartStatement || fnbrackets)
+  }
 
 
   /** Prefix increment expression. */
@@ -226,16 +215,19 @@ final object Model {
 
 
   /** Negation expression. */
-  def neg(base : Expression) : Expression =
-    new Expression {
-      val priority = 4
-      override val isMinusSafe = false
-      def writeExpression(ctx : CompactContext) : Unit = {
-        ctx.write('-')
-        ctx.bracketed(base.priority > priority, '(', ')',
-          base.writeExpressionAfterMinus(ctx))
-      }
-    }
+  def neg(base : Expression) : Expression = {
+    val negPriority = 4
+    val resWriter =
+      if (base.priority > negPriority)
+        bracketed(true, "(", ")", base.writer)
+      else if (base.isMinusSafe)
+        base.writer
+      else
+        outClass.seq(" ", base.writer)
+
+    new Expression(negPriority, outClass.seq("-", resWriter),
+      isMinusSafe = false)
+  }
 
 
   /** "Type of" expression. */
@@ -274,18 +266,25 @@ final object Model {
 
 
   /** Subtraction expression. */
-  def sub(left : Expression, right : Expression) : Expression =
-    new Expression {
-      val priority = 6
-      val lbracket = left.priority > priority
-      override val canStartStatement = left.canStartStatement || lbracket
-      def writeExpression(ctx : CompactContext) : Unit = {
-        val rbracket = right.priority >= priority
-        ctx.bracketed(lbracket, '(', ')', left.writeExpression(ctx))
-        ctx.write('-')
-        ctx.bracketed(rbracket, '(', ')', right.writeExpressionAfterMinus(ctx))
-      }
-    }
+  def sub(left : Expression, right : Expression) : Expression = {
+    val subPriority = 6
+    val lbracket = left.priority > subPriority
+    val rbracket = right.priority >= subPriority
+    val rightWriter =
+      if (right.priority >= subPriority)
+        bracketed(true, "(", ")", right.writer)
+      else if (right.isMinusSafe)
+        right.writer
+      else
+        outClass.seq(" ", right.writer)
+
+    new Expression(subPriority,
+      outClass.seq(
+        bracketed(lbracket, "(", ")", left.writer),
+        "-",
+        rightWriter),
+      canStartStatement = left.canStartStatement || lbracket)
+  }
 
 
   /** Shift-left expression. */
@@ -380,20 +379,18 @@ final object Model {
 
   /** Conditional expression. */
   def cond(cond : Expression,
-      onTrue : Expression, onFalse: Expression) : Expression =
-    new Expression {
-      val priority = 15
-      val lbracket = cond.priority >= priority
-      override val canStartStatement = cond.canStartStatement || lbracket
-      def writeExpression(ctx : CompactContext) : Unit = {
-        val rbracket = onFalse.priority > priority
-        ctx.bracketed(lbracket, '(', ')', cond.writeExpression(ctx))
-        ctx.write('?')
-        onTrue.writeExpression(ctx)
-        ctx.write(':')
-        ctx.bracketed(rbracket, '(', ')', onFalse.writeExpression(ctx))
-      }
-    }
+      onTrue : Expression, onFalse: Expression) : Expression = {
+    val priority = 15
+    val lbracket = cond.priority >= priority
+    val rbracket = onFalse.priority > priority
+
+    new Expression(priority, outClass.seq(
+        bracketed(lbracket, "(", ")", cond.writer),
+        "?", onTrue.writer, ":",
+        bracketed(rbracket, "(", ")", onFalse.writer)
+      ),
+      canStartStatement = cond.canStartStatement || lbracket)
+  }
 
 
   /** Assignment expression. */
@@ -458,18 +455,10 @@ final object Model {
 
   /** Sequence (comma) expression. */
   def seqExpr(first : Expression, second : Expression) : Expression =
-    new Expression {
-      val priority = 18
-      override val canStartStatement = first.canStartStatement
-      override val isCommaSafe = false
-      def writeExpression(ctx : CompactContext) : Unit = {
-        first.writeExpression(ctx)
-        ctx.write(',')
-        second.writeExpression(ctx)
-      }
-    }
-
-
+    new Expression(18,
+      outClass.seq(first.writer, ",", second.writer),
+      isCommaSafe = false,
+      canStartStatement = first.canStartStatement)
 
 
   /** Breaks from an outer statement. */
@@ -490,48 +479,31 @@ final object Model {
 
   /** Preforms statement with a postfix condition check. */
   def doWhile(items : Seq[Statement], cond : Expression) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write("do{")
-        items.foreach(_.writeStatement(ctx))
-        ctx.write("}while(")
-        cond.writeExpression(ctx)
-        ctx.write(");")
-      }
-    }
+    new Statement(outClass.seq(
+      "do{",
+      outClass.seq(items.map(_.stmtWriter) :_*),
+      "}while(", cond.writer, ");"
+    ))
 
 
   /** Creates a for statement. */
   def whileWithIterupdate(cond : Expression, update : Expression,
       body : Seq[Statement]) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write("for(;")
-        cond.writeExpression(ctx)
-        ctx.write(';')
-        update.writeExpression(ctx)
-        ctx.write(')')
-        ctx.bracketed(body.size != 1, '{', '}',
-          body.foreach(_.writeStatement(ctx)))
-      }
-    }
+    new Statement(outClass.seq(
+      "for(;", cond.writer,";",update.writer, ")",
+      bracketed(body.size != 1, "{", "}",
+        outClass.seq(body.map(_.stmtWriter) : _*))
+    ))
 
 
   /** Performs iteration over container keys. */
   def forIn(iter : LeftValue, collection : Expression,
       body : Seq[Statement]) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write("for (")
-        iter.writeExpression(ctx)
-        ctx.write(" in ")
-        collection.writeExpression(ctx)
-        ctx.write(')')
-        ctx.bracketed(body.size != 1, '{', '}',
-          body.foreach(_.writeStatement(ctx)))
-      }
-    }
-
+    new Statement(outClass.seq(
+      "for (", iter.writer, " in ", collection.writer, ")",
+      bracketed(body.size != 1, "{", "}",
+        outClass.seq(body.map(_.stmtWriter) :_*))
+    ))
 
   /** Performs statements when condition is true. */
   def when(cond : Expression, body : Seq[Statement]) : Statement =
@@ -541,31 +513,21 @@ final object Model {
   /** Chooses one of two statements. */
   def doCond(condition : Expression, onTrue : Seq[Statement],
       onFalse : Seq[Statement]): Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write("if(")
-        condition.writeExpression(ctx)
-        ctx.write(')')
-        ctx.bracketed(onTrue.size != 1, '{', '}',
-          onTrue.foreach(_.writeStatement(ctx)))
-        ctx.write("else")
-        if (onFalse.size == 1)
-          ctx.write(' ')
-        ctx.bracketed(onFalse.size != 1, '{', '}',
-          onFalse.foreach(_.writeStatement(ctx)))
-      }
-    }
+    new Statement(outClass.seq(
+      "if(", condition.writer, ")",
+      bracketed(onTrue.size != 1, "{", "}",
+        outClass.seq(onTrue.map(_.stmtWriter) : _*)),
+      if (onFalse.size != 1) "else" else "else ",
+      bracketed(onFalse.size != 1, "{", "}",
+        outClass.seq(onFalse.map(_.stmtWriter) : _*))
+    ))
 
 
   /** Labels a statement. */
   def label(lbl : AnyRef, body : Statement) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.writeLabel(lbl)
-        ctx.write(':')
-        body.writeStatement(ctx)
-      }
-    }
+    new Statement(outClass.seq(
+      labelWriter(lbl), ":", body.stmtWriter
+    ))
 
 
   /** Return statement. */
@@ -581,8 +543,31 @@ final object Model {
   /** Switch statement. */
   def switchof(cond : Expression,
       rmap : Seq[(Seq[Expression], Seq[Statement])],
-      onElse : Option[Seq[Statement]]) : Statement =
-    new SwitchStatement(cond, rmap, onElse)
+      onElse : Option[Seq[Statement]]) : Statement = {
+
+    val fragments = new ArrayBuffer[OutFragment]
+    fragments +=
+      "switch(" += cond.writer += "){"
+
+    for ((ks, ss) ← rmap)
+      if (!ks.isEmpty) {
+        ks.foreach(k ⇒
+          fragments += "case " += k.writer += ":")
+        fragments ++= ss.map(_.stmtWriter)
+        fragments += "break;"
+      }
+
+    onElse match {
+      case None ⇒ ()
+      case Some(x) ⇒
+        fragments += "default:"
+        fragments ++= x.map(_.stmtWriter)
+    }
+
+    fragments += "}"
+
+    new Statement(outClass.seq(fragments :_*))
+  }
 
 
   /** Throw statement. */
@@ -594,46 +579,31 @@ final object Model {
   def tryCatch( body : Seq[Statement],
       exnId : AnyRef,
       exnHandler : Seq[Statement]) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write("try{")
-        body.foreach(_.writeStatement(ctx))
-        ctx.write("}catch(")
-        val ss = ctx.sub(Set(exnId), Seq.empty)
-        ss.writeVariable(exnId)
-        ss.write("){")
-        exnHandler.foreach(_.writeStatement(ss))
-        ss.write("}")
-      }
-    }
+    new Statement(outClass.seq(
+      "try{", outClass.seq(body.map(_.stmtWriter) :_*), "}catch(",
+      subContext(Set(exnId), outClass.seq(
+        varWriter(exnId),
+        "){", outClass.seq(exnHandler.map(_.stmtWriter) : _*),
+        "}"))
+    ))
 
 
   /** Tries with finalizer. */
   def withFin(body : Seq[Statement], fin : Seq[Statement]) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write("try{")
-        body.foreach(_.writeStatement(ctx))
-        ctx.write("}finally{")
-        fin.foreach(_.writeStatement(ctx))
-        ctx.write("}")
-      }
-    }
+    new Statement(outClass.seq(
+      "try{", outClass.seq(body.map(_.stmtWriter) :_*),
+      "}finally{", outClass.seq(fin.map(_.stmtWriter) :_*),
+      "}"
+    ))
 
 
   /** While statement. */
   def whiles(cond : Expression, body : Seq[Statement]) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write("while(")
-        cond.writeExpression(ctx)
-        ctx.write(')')
-        ctx.bracketed(body.size != 1, '{', '}',
-          body.foreach(_.writeStatement(ctx)))
-      }
-    }
-
-
+    new Statement(outClass.seq(
+      "while(", cond.writer, ")",
+      bracketed(body.size != 1, "{", "}",
+        outClass.seq(body.map(_.stmtWriter) : _*))
+    ))
 
 
   /** Creates a javascript file. */
@@ -643,11 +613,35 @@ final object Model {
         funcs :Seq[(AnyRef, FunctionBody)] = Seq.empty,
         inits : Seq[Statement] = Seq.empty) :
       JSFile = {
+
     val uniqueNames = globals.map(_._2).toSet
     if (uniqueNames.size != globals.size)
       throw new IllegalArgumentException("Non-unique global name present")
 
-    new JSFile(globals.toMap, vars, funcs, inits)
+    val localIds = (vars ++ funcs.map(_._1)).toSet -- globals.map(_._1).toSet
+
+    val operations = new ArrayBuffer[CompactContext ⇒  Unit]
+
+    if (!vars.isEmpty)
+      operations += "var " += sepBy(",", vars.map(varWriter)) += ";"
+
+    funcs.foreach(x ⇒
+      operations += "function " += varWriter(x._1) += x._2.writer)
+
+    operations ++= inits.map(x ⇒ x.writeStatement _)
+
+    new JSFile(globals.toMap, outClass.seq(operations : _*))
+  }
+
+
+  /**
+   * Outputs js file into a given writer.
+   * @param file file to write.
+   * @param w target stream.
+   */
+  def writeFileToWriter(file : JSFile, w : java.io.Writer) : Unit = {
+    val ctx = CompactContext.forWriter(w, file.globals)
+    file.writer(ctx)
   }
 
 
@@ -678,98 +672,193 @@ final object Model {
 
   /** Creates a plaintext expression. */
   private def textExpr(value : String) : Expression =
-    new Expression {
-      val priority = 0
-      override val isMinusSafe = !value.startsWith("-")
-      def writeExpression(ctx : CompactContext) : Unit =
-        ctx.write(value)
-    }
+    new Expression(0, value, isMinusSafe = !value.startsWith("-"))
 
 
   /** Creates a prefix operation. */
   private def prefixOp(peer : LeftValue, op : String) : Expression =
-    new Expression {
-      val priority = 2
-      override val isMinusSafe = !op.startsWith("-")
-      def writeExpression(ctx : CompactContext) : Unit = {
-        ctx.write(op)
-        peer.writeExpression(ctx)
-      }
-    }
+    new Expression(2, outClass.seq(op, peer.writer),
+      isMinusSafe = !op.startsWith("-"))
 
 
   /** Creates a postfix operation. */
   private def postfixOp(peer : LeftValue, op : String) : Expression =
-    new Expression {
-      val priority = 2
-      override val canStartStatement = peer.canStartStatement
-      def writeExpression(ctx : CompactContext) : Unit = {
-        peer.writeExpression(ctx)
-        ctx.write(op)
-      }
-    }
+    new Expression(2, outClass.seq(peer.writer, op),
+      canStartStatement = peer.canStartStatement)
 
 
   /** Creates a new unary expression. */
   private def unary(base : Expression, code : String) : Expression =
-    new Expression {
-      val priority = 4
-      def writeExpression(ctx : CompactContext) : Unit = {
-        ctx.write(code)
-        ctx.bracketed(base.priority > priority, '(', ')',
-          base.writeExpression(ctx))
-      }
-    }
+    new Expression(4,
+      outClass.seq(code, bracketed(base.priority > 4, "(", ")", base.writer)))
 
 
   /** Creates a binary expression. */
   private def binary(
       left : Expression, right : Expression, sign : String,
-      bpriority : Int) : Expression =
-    new Expression {
-      val priority = bpriority
-      val lbracket = left.priority > priority
-      override val canStartStatement = left.canStartStatement || lbracket
-      def writeExpression(ctx : CompactContext) : Unit = {
-        val rbracket = right.priority >= priority
-        ctx.bracketed(lbracket, '(', ')', left.writeExpression(ctx))
-        ctx.write(sign)
-        ctx.bracketed(rbracket, '(', ')', right.writeExpression(ctx))
-      }
-    }
+      bpriority : Int) : Expression = {
+    val lbracket = left.priority > bpriority
+    val rbracket = right.priority >= bpriority
+    new Expression(bpriority, outClass.seq(
+        bracketed(lbracket, "(", ")", left.writer),
+        sign,
+        bracketed(rbracket, "(", ")", right.writer)
+      ), canStartStatement = left.canStartStatement || lbracket)
+  }
 
 
   /** Creates a text statement. */
   private def textStmt(text : String) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write(text)
-        ctx.write(';')
-      }
-    }
+    new Statement(text + ";")
 
 
   /** Creates a statement with a label. */
   private def labeledStmt(text : String, lbl : AnyRef) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write(text)
-        ctx.write(' ')
-        ctx.writeLabel(lbl)
-        ctx.write(';')
-      }
-    }
+    new Statement(outClass.seq(
+      text, " ", labelWriter(lbl), ";"
+    ))
 
 
   /** Statement with an expression as argument. */
-  def kwdStmt(kwd :String, expr : Expression) : Statement =
-    new Statement {
-      def writeStatement(ctx : CompactContext) : Unit = {
-        ctx.write(kwd)
-        ctx.write(' ')
-        expr.writeExpression(ctx)
-        ctx.write(';')
-      }
+  private def kwdStmt(kwd :String, expr : Expression) : Statement =
+    new Statement(outClass.seq(
+      kwd, " ", expr.writer, ";"
+    ))
+
+
+  /** Creates a subcontext writer. */
+  private def subContext(locals : Set[AnyRef], writer : OutFragment) : OutFragment =
+    ctx ⇒ writer(ctx.sub(locals, Seq.empty))
+
+
+  /** Creates a writer in a sub-function context. */
+  private def subFunction(
+        locals : Iterable[AnyRef],
+        labels : Iterable[AnyRef],
+        writer : OutFragment)
+      : OutFragment =
+    ctx ⇒ writer(ctx.sub(locals, labels))
+
+  /** Writes item with separator. */
+  private def sepBy(separator : OutFragment, items : Iterable[OutFragment]) : OutFragment =
+    outClass.seq(intersperse(separator, items) :_*)
+
+  /**
+   * Interperses element between elements of the iterable.
+   * For example, interperse(1, [a,b,c]) = [a,1,b,1,c,1]
+   */
+  private def intersperse[T](item : T, items : Iterable[T]) : Seq[T] = {
+    val itr = items.iterator
+    if (!itr.hasNext)
+      return Seq.empty
+
+    val res = new ArrayBuffer[T]
+    res += itr.next()
+
+    while (itr.hasNext) {
+      res += item
+      res += itr.next()
     }
 
+    return res
+  }
+
+
+  /**
+   * Creates a new writer for the variable.
+   * @param name variable name (identifier).
+   */
+  private def varWriter(name : AnyRef) : OutFragment =
+    ctx ⇒ ctx.writeVariable(name)
+
+
+  /** Creates a label writer. */
+  private def labelWriter(name : AnyRef) : OutFragment =
+    ctx ⇒ ctx.writeLabel(name)
+
+
+  /** Creates a possibly-bracketed expression. */
+  private[model] def bracketed(cond : Boolean,
+        lbracket : OutFragment, rbracket : OutFragment,
+        content : OutFragment) : OutFragment =
+    if (cond)
+      outClass.seq(lbracket, content, rbracket)
+    else
+      content
+
+
+  /** Writes an expression as comma-safe. */
+  private def commaSafe(expr : Expression) : OutFragment =
+    bracketed(!expr.isCommaSafe, "(", ")", expr.writer)
+
+
+  /** Creates a member accessor writer. */
+  private def memberAccessorWriter(item : Expression) : OutFragment =
+    item.simpleMemberAccessor match {
+      case None ⇒ outClass.seq("[", item.writer, "]")
+      case Some(x) ⇒ outClass.seq(".", x)
+    }
+
+
+  /** Implicit conversion from string to fragment. */
+  implicit private def str2fragment(str : String) : OutFragment =
+    outClass.token(str)
+
+
+  /** Checks, if value is valid identifier. */
+  private def validSimpleId(value :String) : Boolean = {
+    if (value.isEmpty)
+      return false
+    if (Character.isDigit(value.charAt(0)))
+      return false
+
+    var ptr = 0
+    while (ptr < value.length) {
+      if (!isValidIdentifierChar(value.charAt(ptr)))
+        return false
+      ptr+=1
+    }
+
+    true
+  }
+
+
+  /** Checks, if character is valid identifier char. */
+  private def isValidIdentifierChar(c : Char) : Boolean = {
+    Character.getType(c) match {
+      case
+        Character.UPPERCASE_LETTER |
+        Character.LOWERCASE_LETTER |
+        Character.TITLECASE_LETTER |
+        Character.MODIFIER_LETTER |
+        Character.OTHER_LETTER |
+        Character.LETTER_NUMBER ⇒ true
+      case _ ⇒ false
+    }
+  }
+
+
+  def mkFunctionBody(
+      args : Seq[AnyRef],
+      vars : Seq[AnyRef],
+      funcs : Seq[(AnyRef, FunctionBody)],
+      labels : Seq[AnyRef],
+      stmt : Seq[Statement]) : FunctionBody = {
+
+    val allLocals : Set[AnyRef] = (
+      args ++ vars ++ funcs.map(x ⇒ x._1)).toSet
+
+    val res = new ArrayBuffer[OutFragment]
+    res += "(" += sepBy(",", args.map(varWriter)) += "){"
+
+    if (!vars.isEmpty)
+      res += "var " += sepBy(",", vars.map(varWriter)) += ";"
+
+    funcs.foreach(f ⇒
+      res += outClass.seq("function ", varWriter(f._1), f._2.writer))
+
+    res ++= stmt.map(_.stmtWriter) += "}"
+
+    new FunctionBody(subFunction(allLocals, labels, outClass.seq(res : _*)))
+  }
 }

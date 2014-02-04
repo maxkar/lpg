@@ -167,7 +167,7 @@ private class FuncBlock (
     extends BlockCompiler {
 
   def compileStatements(ctx : LocalContext, cb : Statement ⇒  Unit) : Unit = {
-    ctx.funcImpl(key, FuncComp.compFunction(host, ctx.variables,
+    ctx.funcImpl(key, FuncComp.compToBody(host, ctx.variables,
       isVaarg, args, tl, trace))
   }
 }

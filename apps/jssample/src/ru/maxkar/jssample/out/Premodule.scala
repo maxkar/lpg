@@ -51,7 +51,7 @@ final class Premodule(
 
     (allVars.toSet,
       allFunctions.map(x ⇒
-        (x._1, FuncComp.compFunction(module, symScope, x._2, x._3, x._4, trace))),
+        (x._1, FuncComp.compToBody(module, symScope, x._2, x._3, x._4, trace))),
       stmts)
   }
 }

@@ -22,6 +22,18 @@ private[out] object FuncComp {
   import CompilerUtil._
   import ExprComp._
 
+  /** Compiles to a body. */
+  def compToBody(
+        host : java.io.File,
+        scope : SymbolScope,
+        isVaarg : Boolean,
+        args : Seq[SExpression[BaseItem]],
+        tl : Seq[SExpression[BaseItem]],
+        trace : HostTrace) : FunctionBody = {
+    val t = compFunction(host, scope, isVaarg, args, tl, trace)
+    Model.mkFunctionBody(t._1, t._2, t._3, t._4, t._5)
+  }
+
   /** Compiles a function body. */
   def compFunction(
         host : java.io.File,
@@ -29,7 +41,7 @@ private[out] object FuncComp {
         isVaarg : Boolean,
         args : Seq[SExpression[BaseItem]],
         tl : Seq[SExpression[BaseItem]],
-        trace : HostTrace) :  FunctionBody = {
+        trace : HostTrace) : (Seq[AnyRef], Seq[AnyRef], Seq[(AnyRef, FunctionBody)], Seq[AnyRef], Seq[Statement]) = {
 
 
     val root = new RootScopeBuilder(host)
@@ -80,7 +92,7 @@ private[out] object FuncComp {
          case _ ⇒ Seq.empty
         }
 
-    new FunctionBody(
+    (
       root.getArgs,
       root.getVars,
       functab,

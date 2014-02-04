@@ -297,7 +297,7 @@ final class TestCompactWrite extends JUnitSuite {
     "if(1){2;3;}else{}" ?= doCond(1, Seq(2,3), Seq())
     "if(1)2;else{}" ?= doCond(1, Seq(2), Seq())
     "if(1){}else 4;" ?= doCond(1, Seq(), Seq(4))
-    "if(1){}else{}" ?= doCond(1, Seq(), Seq())
+    "if(1)ga;else gb;" ?= doCond(1, Seq(variable("ga")), Seq(variable("gb")))
   }
 
   /** Tests a return statement. */
@@ -372,7 +372,7 @@ private object TestCompactWrite {
   implicit class Str2Assert(val base : String) extends AnyVal {
     def ?=(other : JSFile) : Unit = {
       val sw = new java.io.StringWriter
-      other.writeToWriter(sw)
+      Model.writeFileToWriter(other, sw)
       Assert.assertEquals(base, sw.toString)
     }
 

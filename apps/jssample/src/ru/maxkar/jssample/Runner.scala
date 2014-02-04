@@ -58,7 +58,7 @@ final object Runner {
     try {
       val f = new BufferedWriter(new FileWriter(args(0)))
       try {
-        resf.writeToWriter(f)
+        Model.writeFileToWriter(resf, f)
       } finally {
         f.close
       }

@@ -88,7 +88,7 @@ private[out] class ExprComp(
         if (isvaarg && args.isEmpty)
           trace.noArgVararg(item)
         val fb = FuncComp.compFunction(host, scope, isvaarg, args, body, trace)
-        anonfun(fb.args, fb.vars, fb.funcs, fb.labels, fb.stmt)
+        anonfun(fb._1, fb._2, fb._3, fb._4, fb._5)
       case SList(Seq(SLeaf(BaseId("mk-array"), _), tl@_*), _) ⇒
         arrayliteral(tl.map(compile) :_*)
       case SList(Seq(SLeaf(BaseId("mk-map"), _), tl@_*), _) ⇒
