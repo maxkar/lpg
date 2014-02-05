@@ -16,12 +16,4 @@ class Expression(
       final private [model] val isMinusSafe : Boolean = true,
       final private [model] val canStartStatement : Boolean = true,
       final private [model] val simpleMemberAccessor : Option[String] = None
-    ) extends Statement (
-      Model.outClass.seq(
-        Model.bracketed(
-          !canStartStatement,
-          Model.outClass.token("("),
-          Model.outClass.token(")"),
-          writer),
-        Model.outClass.token(";"))) {
-}
+    )

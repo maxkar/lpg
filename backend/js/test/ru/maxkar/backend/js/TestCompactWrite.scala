@@ -368,6 +368,9 @@ private object TestCompactWrite {
   implicit def int2expr(str : Int) : Expression =
     literal(str)
 
+  implicit def int2stmt(str : Int) : Statement =
+    expr2statement(literal(str))
+
 
   implicit class Str2Assert(val base : String) extends AnyVal {
     def ?=(other : JSFile) : Unit = {

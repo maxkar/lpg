@@ -46,8 +46,8 @@ final class Premodule(
 
     val mc = new ExprComp(module, trace, symScope)
 
-    val stmts = varInitializers.map(x ⇒
-      Model.assign(x._1.resolve.asInstanceOf[LeftValue], mc.compile(x._2)))
+    val stmts = varInitializers.map(x ⇒ Model.expr2statement(
+      Model.assign(x._1.resolve.asInstanceOf[LeftValue], mc.compile(x._2))))
 
     (allVars.toSet,
       allFunctions.map(x ⇒

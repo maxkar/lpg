@@ -460,6 +460,13 @@ final object Model {
       isCommaSafe = false,
       canStartStatement = first.canStartStatement)
 
+  /** Converts expression into statement. */
+  implicit def expr2statement(expr : Expression) : Statement =
+    new Statement(outClass.seq(
+        Model.bracketed(
+          !expr.canStartStatement, "(", ")", expr.writer),
+        Model.outClass.token(";")))
+
 
   /** Breaks from an outer statement. */
   def breakOuter() : Statement = textStmt("break")

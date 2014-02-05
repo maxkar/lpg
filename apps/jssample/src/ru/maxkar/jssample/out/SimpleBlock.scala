@@ -114,7 +114,7 @@ private class ForArray(idxVar : Symbol, arrVar : Symbol, valVar : Symbol,
 
     val loadItem = assign(valVar.resolve, member(arrVar.resolve, idxVar.resolve))
 
-    cb(whileWithIterupdate(loopCond, updExpr, loadItem +: tl.compileToSeq(ctx)))
+    cb(whileWithIterupdate(loopCond, updExpr, expr2statement(loadItem) +: tl.compileToSeq(ctx)))
   }
 }
 
