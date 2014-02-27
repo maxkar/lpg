@@ -9,8 +9,10 @@ import java.math.BigDecimal
  * Generates string names for the elements of the input.
  * This allows to use non-string identifiers for the variables (identity ids for example).
  */
-abstract class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
+final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
     extends Syntax[V, L, NamingExpression[BE, V, L], NamingStatement[V, L, BS]] {
+
+  import NamingSyntax._
 
   /** Expression type synonim. */
   private type E = NamingExpression[BE, V, L]
@@ -32,7 +34,18 @@ abstract class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
    *   exported names, etc...
    * @param items items to convert.
    */
-  def compile(predefinedNames : Map[V, String], items : Seq[S]) : Seq[BS]
+  def compile(predefinedNames : Map[V, String], items : Seq[S]) : Seq[BS] = {
+    val (uv, dv, dl) = analyze(items)
+    val sysnames = predefinedNames.values.toSet
+    val nameGen = idGen(sysnames)
+    val labelGen = idGen(Set.empty)
+    val rootCtx = new Context[V, L](
+      nameGen, labelGen, predefinedNames, Map.empty)
+    val ctx = rootCtx.sub(uv ++ dv, dl)
+
+    items.map(x ⇒  x.resolve(ctx))
+  }
+
 
 
   /* Trait implementation. */
@@ -561,4 +574,67 @@ abstract class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
   }
 
   /* Utilities. */
+}
+
+/** Some static defaults. */
+private object NamingSyntax {
+
+  /** Creates a new id generator. */
+  def idGen(blacklist : Set[String]) : CachingIdGenerator = {
+    val base = new WildNameGenerator(ID_STARTS, ID_CHARS)
+    val tamed = new TamedNameGenerator(base, blacklist ++ KEYWORDS)
+    CachingIdGenerator(base.next)
+  }
+
+  /** Identifier starts. */
+  val ID_STARTS = ('a' to 'z') ++ ('A' to 'Z')
+
+  /** Identifier chars. */
+  val ID_CHARS = ID_STARTS ++ ('0' to '9')
+
+  /** Javascript keywords. */
+  val KEYWORDS = Set(
+    "arguments",
+    "break",
+    "case",
+    "catch",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "in",
+    "instanceof",
+    "new",
+    "return",
+    "switch",
+    "this",
+    "throw",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    "class",
+    "enum",
+    "export",
+    "extends",
+    "import",
+    "super",
+    "implements",
+    "interface",
+    "let",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "static",
+    "yield"
+  )
 }
