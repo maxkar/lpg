@@ -12,7 +12,7 @@ package ru.maxkar.backend.js.out.syn
  * @param statementStart flag, indicating that this expression can start
  *   statement. For example, object literal cannot start an expression.
  */
-private [syn] final case class CompactExpression[F](
+final case class CompactExpression[F](
   writer : F,
   priority : Int,
   commaSafe : Boolean,

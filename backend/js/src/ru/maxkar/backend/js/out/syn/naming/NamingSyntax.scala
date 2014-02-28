@@ -41,9 +41,9 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
     val labelGen = idGen(Set.empty)
     val rootCtx = new Context[V, L](
       nameGen, labelGen, predefinedNames, Map.empty)
-    val ctx = rootCtx.sub(uv ++ dv, dl)
+    val ctx = rootCtx.sub(uv ++ dv -- predefinedNames.keys, dl)
 
-    items.map(x ⇒  x.resolve(ctx))
+    ctx.resolveStmts(items)
   }
 
 
@@ -404,9 +404,9 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
     stmt(
       allReferenced -- allDefined ++ name, name.toSet, Set.empty,
       c ⇒ {
-        val subctx = c.sub(allDefined, allLabels)
+        val subctx = c.sub(allDefined -- name, allLabels)
         base.functionStmt(
-          name.map(subctx.variable),
+          name.map(c.variable),
           args.map(subctx.variable),
           subctx.resolveStmts(body))
       })

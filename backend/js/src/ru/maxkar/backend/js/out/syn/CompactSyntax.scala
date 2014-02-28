@@ -22,6 +22,12 @@ final class CompactSyntax[F](
   private type S = CompactStatement[F]
 
 
+  /* Extra methods. */
+
+  /** Compiles sequence into an output fragment. */
+  def compile(items : Seq[S]) : F =
+    seq2writer(items map stmt2writer)
+
 
   /* Trait implementation. */
 
@@ -100,7 +106,7 @@ final class CompactSyntax[F](
     val fnbrackets = specifier.priority > 2
     exprn(2, seq(
         bracketed(fnbrackets, "(", ")", specifier),
-        "(", args map commaSafe, ")"),
+        "(", sepBy(",", args map commaSafe), ")"),
       statementStart = fnbrackets || specifier.statementStart,
       minusSafe = fnbrackets || specifier.minusSafe)
   }
@@ -380,7 +386,7 @@ final class CompactSyntax[F](
         "}"))
 
   override def raise(value : E) : S =
-    stmt(seq("throw ", value))
+    stmt(seq("throw ", value, ";"))
 
   override def tryCatch(
         body : Seq[S],
@@ -392,7 +398,7 @@ final class CompactSyntax[F](
     stmt(seq(
         "try{", body map stmt2writer,
         onException match {
-          case None ⇒ ""
+          case None ⇒ "}"
           case Some((v, handler)) ⇒
             seq("}catch(", v, "){", handler map stmt2writer, "}")
           },
@@ -419,7 +425,7 @@ final class CompactSyntax[F](
 
   /** Plain (base) expression. */
   private def textExpr(text : String) : E =
-    exprn(0, text, commaSafe = !text.startsWith("-"))
+    exprn(0, text, minusSafe = !text.startsWith("-"))
 
   /** Quotes an input string. */
   def quoteString(expr : String) : String = {
@@ -494,7 +500,7 @@ final class CompactSyntax[F](
   private def mapEntry(entry : (String, E)) : F =
     seq(
       if (isValidSimpleId(entry._1)) entry._1 else quoteString(entry._1),
-    entry._2.writer)
+    ":", commaSafe(entry._2))
 
   /** Prefix operation factory. */
   private def prefixOp(base : E, op : String) : E = {

@@ -1,6 +1,6 @@
 package ru.maxkar.backend.js.model
 
-import ru.maxkar.backend.js.out.CompactContext
+import Model._
 
 /** Function body definition. */
-final case class FunctionBody(writer : CompactContext ⇒ Unit)
+final case class FunctionBody(args : Seq[AnyRef], statements : Seq[S])

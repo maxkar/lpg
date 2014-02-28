@@ -10,42 +10,55 @@ import ru.maxkar.backend.js.out.writer.ContextWriter
 import scala.language.implicitConversions
 import scala.collection.mutable.ArrayBuffer
 
+import ru.maxkar.backend.js.out.syn._
+import ru.maxkar.backend.js.out.syn.naming._
+
+
 /** Model element factories.
  * Lacks support of regular expressions at this point.
  */
 final object Model {
 
-  private[model] type OutFragment = CompactContext ⇒ Unit
+  /** Fragment type. */
+  type F = java.io.Writer ⇒ Unit
 
-  /** Output typeclass. */
-  private[model] val outClass : Writer[OutFragment] =
-    new ContextWriter((s, ctx) ⇒  ctx.write(s))
+  /** Expression type. */
+  type E = NamingExpression[AnyRef, AnyRef, CompactExpression[F]]
 
+  /** Statement type. */
+  type S = NamingStatement[AnyRef, AnyRef, CompactStatement[F]]
+
+  /** Bottom model. */
+  private val peer1 = new CompactSyntax(WriteClass)
+
+  /** Second-level syntax implementation. */
+  private val peer2 = new
+    NamingSyntax[AnyRef, AnyRef, CompactExpression[F], CompactStatement[F]](peer1)
+
+  /** Real underlying model. */
+  private val model : Syntax[AnyRef, AnyRef, E, S] = peer2
 
   /** Failure expression. */
-  val failure : LeftValue =
-    new LeftValue(0, ctx ⇒
-        throw new IllegalStateException("Cannot write failure!"))
-
+  val failure : LeftValue = new LeftValue(null)
 
   /** Boolean "true" expression. */
-  val exprTrue : Expression = textExpr("true")
+  val exprTrue : Expression = new Expression(model.literal(true))
 
 
   /** Boolean "false" expression. */
-  val exprFalse : Expression = textExpr("false")
+  val exprFalse : Expression = new Expression(model.literal(false))
 
 
   /** Null expression. */
-  val exprNull : Expression = textExpr("null")
+  val exprNull : Expression = new Expression(model.exprNull)
 
 
   /** Undefined expression. */
-  val undefined : Expression = textExpr("undefined")
+  val undefined : Expression = new Expression(model.exprUndefined)
 
 
   /** Function arguments expression. */
-  val arguments : Expression = textExpr("arguments")
+  val arguments : Expression = new Expression(model.exprArguments)
 
 
   /** Creates a function definition. */
@@ -57,37 +70,29 @@ final object Model {
 
 
   /** Creates a string expression. */
-  def literal(expr : String) : Expression = {
-    val memberAccessor =
-      if (validSimpleId(expr)) Some(expr) else None
-    val quoted = quoteString(expr)
-    new Expression(0, quoted, simpleMemberAccessor = memberAccessor)
-  }
+  def literal(expr : String) : Expression =
+    new Expression(model.literal(expr),
+      if (validSimpleId(expr)) Some(expr) else None)
 
 
   /** Creates a number literal expression. */
   def literal(value : Int) : Expression =
-    textExpr(value.toString)
+    literal(BigInteger.valueOf(value))
 
 
   /** Creates a numeric literal expression. */
   def literal(value : Long) : Expression =
-    textExpr(value.toString)
+    literal(BigInteger.valueOf(value))
 
 
   /** Creates a numeric literal experssion. */
   def literal(value : BigInteger) : Expression =
-    textExpr(value.toString)
-
-
-  /** Creates a number literal expression. */
-  def literal(value : Double) : Expression =
-    textExpr(value.toString)
+    new Expression(model.literal(value))
 
 
   /** Creates a number literal expression. */
   def literal(head : BigDecimal, tail : BigInteger) : Expression =
-    textExpr(head.toString + "E" + tail.toString)
+    new Expression(model.literal(head, tail))
 
 
   /** Creates a boolean literal. */
@@ -97,33 +102,20 @@ final object Model {
 
   /** Creates an array expression. */
   def arrayliteral(elts : Expression*) : Expression =
-    new Expression(0, outClass.seq(
-      "[", sepBy(",", elts.map(commaSafe)), "]"))
+    new Expression(model.arrayLiteral(exprs2base(elts)))
 
 
   /** Creates an object literal. */
   def objectliteral(elts : (String, Expression)*) : Expression =
-    new Expression(0, outClass.seq(
-        "{", sepBy(",", elts.map(writerForMapEntry)), "}"
-      ), canStartStatement = false)
-
-
-  /**
-   * Creates writer for the map entry.
-   */
-  private def writerForMapEntry(entry : (String, Expression)) : OutFragment =
-    outClass.seq(
-      if (validSimpleId(entry._1))
-        outClass.token(entry._1)
-      else
-        outClass.token(quoteString(entry._1)),
-      ":", commaSafe(entry._2)
+    new Expression(model.objectLiteral(
+      elts map (
+        x ⇒ (x._1, expr2base(x._2))))
     )
 
 
   /** Creates a reference to a variable in outer scope. */
   def variable(ref : AnyRef) : LeftValue =
-    new LeftValue(0, varWriter(ref))
+    new LeftValue(model.variable(ref))
 
 
   /** Creates an anonymous local function. */
@@ -132,10 +124,18 @@ final object Model {
       labels : Seq[AnyRef],
       body : Seq[Statement]) : Expression = {
 
-    val fb = mkFunctionBody(args, locals, localFuncs, labels, body)
-    new Expression(0,
-      outClass.seq("function", fb.writer),
-      canStartStatement = false)
+    val locDef =
+      if (locals.isEmpty)
+        Seq.empty[S]
+      else
+        Seq(model.defVars(locals.map(x ⇒  (x, None))))
+
+    val locFuncs =
+      localFuncs.map(
+        x ⇒ model.functionStmt(Some(x._1), x._2.args, x._2.statements))
+
+    new Expression(model.functionExpr(None, args,
+      locDef ++ locFuncs ++ stmts2base(body)))
   }
 
 
@@ -144,373 +144,314 @@ final object Model {
       localFuncs : Seq[(AnyRef, FunctionBody)],
       labels : Seq[AnyRef],
       body : Seq[Statement]) : Expression = {
-    val fb = mkFunctionBody(args, locals, localFuncs, labels, body)
-    new Expression(0,
-      subFunction(Set(id), labels,
-        outClass.seq("function ", varWriter(id), fb.writer)),
-      canStartStatement = false)
+    val locDef =
+      if (locals.isEmpty)
+        Seq.empty[S]
+      else
+        Seq(model.defVars(locals.map(x ⇒  (x, None))))
+
+    val locFuncs =
+      localFuncs.map(
+        x ⇒ model.functionStmt(Some(x._1), x._2.args, x._2.statements))
+
+    new Expression(model.functionExpr(Some(id), args,
+      locDef ++ locFuncs ++ stmts2base(body)))
   }
 
 
   /** Member access expression. */
-  def member(base : Expression, item : Expression)
-      : LeftValue = {
-    val basebrackets = base.priority > 0
-    new LeftValue(0,
-      outClass.seq(
-        bracketed(basebrackets, "(", ")", base.writer),
-        memberAccessorWriter(item)),
-      canStartStatement =  base.canStartStatement || basebrackets)
-  }
+  def member(base : Expression, item : Expression) : LeftValue =
+    item.simpleMemberAccessor match {
+      case None ⇒
+        new LeftValue(model.dynamicMember(base.base, item.base))
+      case Some(x) ⇒
+        new LeftValue(model.knownMember(base.base, x))
+    }
+
 
   /** Creates a new instance creation expression. */
-  def create(base : NonprimitiveExpression, args : Expression*)
-      : NonprimitiveExpression =
-    new NonprimitiveExpression(1, outClass.seq(
-        "new ",
-        bracketed(base.priority > 1, "(", ")", base.writer),
-        "(", sepBy(",", args.map(commaSafe)), ")"
-      ))
+  def create(base : NonprimitiveExpression, args : Expression*) : NonprimitiveExpression =
+    new NonprimitiveExpression(model.create(base.base, exprs2base(args)))
 
 
   /** Writes a function call. */
-  def call(base : NonprimitiveExpression, args : Expression*)
-      : NonprimitiveExpression = {
-    val fnbrackets = base.priority > 2
-    new NonprimitiveExpression(2, outClass.seq(
-        bracketed(fnbrackets, "(", ")", base.writer),
-        "(", sepBy(",", args.map(commaSafe)), ")"
-      ), canStartStatement = base.canStartStatement || fnbrackets)
-  }
-
+  def call(base : NonprimitiveExpression, args : Expression*) : NonprimitiveExpression =
+    new NonprimitiveExpression(model.call(base.base, exprs2base(args)))
 
   /** Prefix increment expression. */
   def prefixInc(base : LeftValue) : Expression =
-    prefixOp(base, "++")
+    new Expression(model.prefixInc(base.base))
 
 
   /** Prefix decrement expression. */
   def prefixDec(base : LeftValue) : Expression =
-    prefixOp(base, "--")
+    new Expression(model.prefixDec(base.base))
 
 
   /** Postfix increment expression. */
   def postfixInc(base : LeftValue) : Expression =
-    postfixOp(base, "++")
+    new Expression(model.postfixInc(base.base))
 
 
   /** Postfix decrement expression. */
   def postfixDec(base : LeftValue) : Expression =
-    postfixOp(base, "--")
+    new Expression(model.postfixDec(base.base))
 
 
   /** Logical not. */
   def boolNot(base : Expression) : Expression =
-    unary(base, "!")
+    new Expression(model.boolNot(base.base))
 
 
   /** Bitwise not. */
   def bitNot(base : Expression) : Expression =
-    unary(base, "~")
+    new Expression(model.bitNot(base.base))
 
 
   /** Negation expression. */
-  def neg(base : Expression) : Expression = {
-    val negPriority = 4
-    val resWriter =
-      if (base.priority > negPriority)
-        bracketed(true, "(", ")", base.writer)
-      else if (base.isMinusSafe)
-        base.writer
-      else
-        outClass.seq(" ", base.writer)
-
-    new Expression(negPriority, outClass.seq("-", resWriter),
-      isMinusSafe = false)
-  }
+  def neg(base : Expression) : Expression =
+    new Expression(model.neg(base.base))
 
 
   /** "Type of" expression. */
   def typeof(base : Expression) : Expression =
-    unary(base, "typeof ")
+    new Expression(model.typeOf(base.base))
 
 
   /** "Void" expression. */
   def voidof(base : Expression) : Expression =
-    unary(base, "void ")
+    new Expression(model.voidOf(base.base))
 
 
   /** "Delete" expression. */
   def delete(base : NonprimitiveExpression) : Expression =
-    unary(base, "delete ")
+    new Expression(model.delete(base.base))
 
 
   /** Multiplication expression. */
   def mul(left : Expression, right : Expression) : Expression =
-    binary(left, right, "*", 5)
+    new Expression(model.mul(left.base, right.base))
 
 
   /** Division expression. */
   def div(left : Expression, right : Expression) : Expression =
-    binary(left, right, "/", 5)
+    new Expression(model.div(left.base, right.base))
 
 
   /** Remainder expression. */
   def rem(left : Expression, right : Expression) : Expression =
-    binary(left, right, "%", 5)
+    new Expression(model.rem(left.base, right.base))
 
 
   /** Addition expression. */
   def add(left : Expression, right : Expression) : Expression =
-    binary(left, right, "+", 6)
+    new Expression(model.add(left.base, right.base))
 
 
   /** Subtraction expression. */
-  def sub(left : Expression, right : Expression) : Expression = {
-    val subPriority = 6
-    val lbracket = left.priority > subPriority
-    val rbracket = right.priority >= subPriority
-    val rightWriter =
-      if (right.priority >= subPriority)
-        bracketed(true, "(", ")", right.writer)
-      else if (right.isMinusSafe)
-        right.writer
-      else
-        outClass.seq(" ", right.writer)
-
-    new Expression(subPriority,
-      outClass.seq(
-        bracketed(lbracket, "(", ")", left.writer),
-        "-",
-        rightWriter),
-      canStartStatement = left.canStartStatement || lbracket)
-  }
+  def sub(left : Expression, right : Expression) : Expression =
+    new Expression(model.sub(left.base, right.base))
 
 
   /** Shift-left expression. */
   def shl(left : Expression, right : Expression) : Expression =
-    binary(left, right, "<<", 7)
+    new Expression(model.shl(left.base, right.base))
 
 
   /** Signed shift right expression. */
   def sshr(left : Expression, right : Expression) : Expression =
-    binary(left, right, ">>", 7)
+    new Expression(model.sshr(left.base, right.base))
 
 
   /** Unsighed shift right expression. */
   def ushr(left : Expression, right : Expression) : Expression =
-    binary(left, right, ">>>", 7)
+    new Expression(model.ushr(left.base, right.base))
 
 
   /** Less comparison expression. */
   def less(left : Expression, right : Expression) : Expression =
-    binary(left, right, "<", 8)
+    new Expression(model.less(left.base, right.base))
 
 
   /** Less or equals comparison expression. */
   def lessEq(left : Expression, right : Expression) : Expression =
-    binary(left, right, "<=", 8)
+    new Expression(model.lessEq(left.base, right.base))
 
 
   /** Greater comparison expression. */
   def greater(left : Expression, right : Expression) : Expression =
-    binary(left, right, ">", 8)
+    new Expression(model.greater(left.base, right.base))
 
 
   /** Greator or equals expression. */
   def greaterEq(left : Expression, right : Expression) : Expression =
-    binary(left, right, ">=", 8)
+    new Expression(model.greaterEq(left.base, right.base))
 
 
   /** "In" check expression. */
   def isIn(left : Expression, right : Expression) : Expression =
-    binary(left, right, " in ", 8)
+    new Expression(model.isIn(left.base, right.base))
 
 
   /** Conditional cast expression. */
   def testInstanceOf(left : Expression, right : Expression) : Expression =
-    binary(left, right, " instanceof ", 8)
+    new Expression(model.isInstanceOf(left.base, right.base))
 
 
   /** Equals expression. */
   def equalsTo(left : Expression, right : Expression) : Expression =
-    binary(left, right, "==", 9)
+    new Expression(model.equals(left.base, right.base))
 
 
   /** Not equals expression. */
   def notEquals(left : Expression, right : Expression) : Expression =
-    binary(left, right, "!=", 9)
+    new Expression(model.notEquals(left.base, right.base))
 
 
   /** Strict equality comparison. */
   def strictEquals(left : Expression, right : Expression) : Expression =
-    binary(left, right, "===", 9)
+    new Expression(model.strictEquals(left.base, right.base))
 
 
   /** String non-equals expression. */
   def strictNotEquals(left : Expression, right : Expression) : Expression =
-    binary(left, right, "!==", 9)
+    new Expression(model.strictNotEquals(left.base, right.base))
 
 
   /** Bitwise and expression. */
   def bitAnd(left : Expression, right : Expression) : Expression =
-    binary(left, right, "&", 10)
+    new Expression(model.bitAnd(left.base, right.base))
 
 
   /** Bitwise exclusive or expression. */
   def bitXor(left : Expression, right : Expression) : Expression =
-    binary(left, right, "^", 11)
+    new Expression(model.bitXor(left.base, right.base))
 
 
   /** Bitwise or expression. */
   def bitOr(left : Expression, right : Expression) : Expression =
-    binary(left, right, "|", 12)
+    new Expression(model.bitOr(left.base, right.base))
 
 
   /** Boolean and expression. */
   def boolAnd(left : Expression, right : Expression) : Expression =
-    binary(left, right, "&&", 13)
+    new Expression(model.boolAnd(left.base, right.base))
 
 
   /** Boolean or expression. */
   def boolOr(left : Expression, right : Expression) : Expression =
-    binary(left, right, "||", 14)
+    new Expression(model.boolOr(left.base, right.base))
 
 
   /** Conditional expression. */
   def cond(cond : Expression,
-      onTrue : Expression, onFalse: Expression) : Expression = {
-    val priority = 15
-    val lbracket = cond.priority >= priority
-    val rbracket = onFalse.priority > priority
-
-    new Expression(priority, outClass.seq(
-        bracketed(lbracket, "(", ")", cond.writer),
-        "?", onTrue.writer, ":",
-        bracketed(rbracket, "(", ")", onFalse.writer)
-      ),
-      canStartStatement = cond.canStartStatement || lbracket)
-  }
+      onTrue : Expression, onFalse: Expression) : Expression =
+    new Expression(model.condExpr(cond.base, onTrue.base, onFalse.base))
 
 
   /** Assignment expression. */
   def assign(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "=",17)
+    new Expression(model.assign(host.base, value.base))
 
 
   /** Inplace addition expression. */
   def inplaceAdd(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "+=",17)
+    new Expression(model.inplaceAdd(host.base, value.base))
 
 
   /** Inplace subtraction expression. */
   def inplaceSub(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "-=",17)
+    new Expression(model.inplaceSub(host.base, value.base))
 
 
   /** Inplace multiplication expression. */
   def inplaceMul(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "*=",17)
+    new Expression(model.inplaceMul(host.base, value.base))
 
 
   /** Inplace division expression. */
   def inplaceDiv(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "/=",17)
+    new Expression(model.inplaceDiv(host.base, value.base))
 
 
   /** Inplace remainder expression. */
   def inplaceRem(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "%=",17)
+    new Expression(model.inplaceRem(host.base, value.base))
 
 
   /** Inplace shilt left expression. */
   def inplaceShl(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "<<=",17)
+    new Expression(model.inplaceShl(host.base, value.base))
 
 
   /** Inplace signed shift right expression. */
   def inplaceSshr(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, ">>=",17)
+    new Expression(model.inplaceSshr(host.base, value.base))
 
 
   /** Inplace unsigned shift right expression. */
   def inplaceUshr(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, ">>>=",17)
+    new Expression(model.inplaceUshr(host.base, value.base))
 
 
   /** Inplace bitwise and expression. */
   def inplaceBitAnd(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "&=",17)
+    new Expression(model.inplaceBitAnd(host.base, value.base))
 
 
   /** Inplace bitwise or expression. */
   def inplaceBitOr(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "|=",17)
+    new Expression(model.inplaceBitOr(host.base, value.base))
 
 
   /** Inplace bitwise exclusive or expression. */
   def inplaceBitXor(host : LeftValue, value : Expression) : Expression =
-    binary(host, value, "^=",17)
+    new Expression(model.inplaceBitXor(host.base, value.base))
 
 
   /** Sequence (comma) expression. */
   def seqExpr(first : Expression, second : Expression) : Expression =
-    new Expression(18,
-      outClass.seq(first.writer, ",", second.writer),
-      isCommaSafe = false,
-      canStartStatement = first.canStartStatement)
+    new Expression(model.seqExpr(first.base, Seq(second.base)))
 
   /** Converts expression into statement. */
   implicit def expr2statement(expr : Expression) : Statement =
-    new Statement(outClass.seq(
-        Model.bracketed(
-          !expr.canStartStatement, "(", ")", expr.writer),
-        Model.outClass.token(";")))
+    new Statement(model.exprStatement(expr.base))
 
 
   /** Breaks from an outer statement. */
-  def breakOuter() : Statement = textStmt("break")
+  def breakOuter() : Statement = new Statement(model.breakOuter)
 
 
   /** Breaks a labeled statement. */
-  def breakL(label : AnyRef) = labeledStmt("break", label)
+  def breakL(label : AnyRef) = new Statement(model.breakLabeled(label))
 
 
   /** Continues an outer statement. */
-  def continueOuter() : Statement = textStmt("continue")
+  def continueOuter() : Statement = new Statement(model.continueOuter)
 
 
   /** Continues a labeled statement. */
-  def continueL(label : AnyRef) = labeledStmt("continue", label)
+  def continueL(label : AnyRef) = new Statement(model.continueLabeled(label))
 
 
   /** Preforms statement with a postfix condition check. */
   def doWhile(items : Seq[Statement], cond : Expression) : Statement =
-    new Statement(outClass.seq(
-      "do{",
-      outClass.seq(items.map(_.stmtWriter) :_*),
-      "}while(", cond.writer, ");"
-    ))
+    new Statement(model.doWhile(stmts2base(items), cond.base))
 
 
   /** Creates a for statement. */
   def whileWithIterupdate(cond : Expression, update : Expression,
       body : Seq[Statement]) : Statement =
-    new Statement(outClass.seq(
-      "for(;", cond.writer,";",update.writer, ")",
-      bracketed(body.size != 1, "{", "}",
-        outClass.seq(body.map(_.stmtWriter) : _*))
-    ))
+    new Statement(model.forExisting(None, Some(cond.base), Some(update.base),
+      stmts2base(body)))
 
 
   /** Performs iteration over container keys. */
   def forIn(iter : LeftValue, collection : Expression,
       body : Seq[Statement]) : Statement =
-    new Statement(outClass.seq(
-      "for (", iter.writer, " in ", collection.writer, ")",
-      bracketed(body.size != 1, "{", "}",
-        outClass.seq(body.map(_.stmtWriter) :_*))
-    ))
+    new Statement(model.forExistingIn(iter.base, collection.base,
+      stmts2base(body)))
+
 
   /** Performs statements when condition is true. */
   def when(cond : Expression, body : Seq[Statement]) : Statement =
@@ -520,97 +461,72 @@ final object Model {
   /** Chooses one of two statements. */
   def doCond(condition : Expression, onTrue : Seq[Statement],
       onFalse : Seq[Statement]): Statement =
-    new Statement(outClass.seq(
-      "if(", condition.writer, ")",
-      bracketed(onTrue.size != 1, "{", "}",
-        outClass.seq(onTrue.map(_.stmtWriter) : _*)),
-      if (onFalse.size != 1) "else" else "else ",
-      bracketed(onFalse.size != 1, "{", "}",
-        outClass.seq(onFalse.map(_.stmtWriter) : _*))
-    ))
+    new Statement(model.ifStatement(condition.base,
+      stmts2base(onTrue), stmts2base(onFalse)))
 
 
   /** Labels a statement. */
   def label(lbl : AnyRef, body : Statement) : Statement =
-    new Statement(outClass.seq(
-      labelWriter(lbl), ":", body.stmtWriter
-    ))
+    new Statement(model.label(lbl, Seq(body.base)))
 
 
   /** Return statement. */
   def returns(value : Expression) : Statement =
-    kwdStmt("return", value)
+    new Statement(model.ret(value.base))
 
 
   /** Return-nothing statement. */
-  def returnNothing() : Statement =
-    textStmt("return")
+  def returnNothing() : Statement = new Statement(model.retNone)
 
 
   /** Switch statement. */
   def switchof(cond : Expression,
       rmap : Seq[(Seq[Expression], Seq[Statement])],
       onElse : Option[Seq[Statement]]) : Statement = {
+    val conds = new ArrayBuffer[(E, Seq[S])]
 
-    val fragments = new ArrayBuffer[OutFragment]
-    fragments +=
-      "switch(" += cond.writer += "){"
-
-    for ((ks, ss) ← rmap)
-      if (!ks.isEmpty) {
-        ks.foreach(k ⇒
-          fragments += "case " += k.writer += ":")
-        fragments ++= ss.map(_.stmtWriter)
-        fragments += "break;"
-      }
-
-    onElse match {
-      case None ⇒ ()
-      case Some(x) ⇒
-        fragments += "default:"
-        fragments ++= x.map(_.stmtWriter)
+    for ((bases, code) ← rmap) {
+      for (base ← bases.dropRight(1))
+        conds += ((base.base, Seq.empty))
+      conds += ((bases.last.base, stmts2base(code) :+ model.breakOuter))
     }
 
-    fragments += "}"
+    val edata = onElse match {
+      case None ⇒ Seq.empty[S]
+      case Some(x) ⇒ stmts2base(x)
+    }
 
-    new Statement(outClass.seq(fragments :_*))
+    new Statement(model.chooseValue(cond.base, conds, edata))
   }
 
 
   /** Throw statement. */
   def throws(value : Expression) : Statement =
-    kwdStmt("throw", value)
+    new Statement(model.raise(value.base))
 
 
   /** Try/catch statement. */
   def tryCatch( body : Seq[Statement],
       exnId : AnyRef,
       exnHandler : Seq[Statement]) : Statement =
-    new Statement(outClass.seq(
-      "try{", outClass.seq(body.map(_.stmtWriter) :_*), "}catch(",
-      subContext(Set(exnId), outClass.seq(
-        varWriter(exnId),
-        "){", outClass.seq(exnHandler.map(_.stmtWriter) : _*),
-        "}"))
+    new Statement(model.tryCatch(
+      stmts2base(body),
+      Some((exnId, stmts2base(exnHandler))),
+      Seq.empty
     ))
 
 
   /** Tries with finalizer. */
   def withFin(body : Seq[Statement], fin : Seq[Statement]) : Statement =
-    new Statement(outClass.seq(
-      "try{", outClass.seq(body.map(_.stmtWriter) :_*),
-      "}finally{", outClass.seq(fin.map(_.stmtWriter) :_*),
-      "}"
-    ))
+    new Statement(model.tryCatch(
+      stmts2base(body),
+      None,
+      stmts2base(fin)))
 
 
   /** While statement. */
   def whiles(cond : Expression, body : Seq[Statement]) : Statement =
-    new Statement(outClass.seq(
-      "while(", cond.writer, ")",
-      bracketed(body.size != 1, "{", "}",
-        outClass.seq(body.map(_.stmtWriter) : _*))
-    ))
+    new Statement(model.whileDo(cond.base, stmts2base(body)))
 
 
   /** Creates a javascript file. */
@@ -625,19 +541,19 @@ final object Model {
     if (uniqueNames.size != globals.size)
       throw new IllegalArgumentException("Non-unique global name present")
 
-    val localIds = (vars ++ funcs.map(_._1)).toSet -- globals.map(_._1).toSet
+    val vstmts =
+      if (vars.isEmpty)
+        Seq.empty[S]
+      else
+        Seq(model.defVars(vars.map(x ⇒ ((x, None)))))
 
-    val operations = new ArrayBuffer[CompactContext ⇒  Unit]
+    val fnstmts =
+      funcs.map(f ⇒
+        model.functionStmt(Some(f._1), f._2.args, f._2.statements))
 
-    if (!vars.isEmpty)
-      operations += "var " += sepBy(",", vars.map(varWriter)) += ";"
-
-    funcs.foreach(x ⇒
-      operations += "function " += varWriter(x._1) += x._2.writer)
-
-    operations ++= inits.map(x ⇒ x.writeStatement _)
-
-    new JSFile(globals.toMap, outClass.seq(operations : _*))
+    val r2 = peer2.compile(globals.toMap,
+      vstmts ++ fnstmts ++ stmts2base(inits))
+    new JSFile(peer1.compile(r2))
   }
 
 
@@ -646,171 +562,25 @@ final object Model {
    * @param file file to write.
    * @param w target stream.
    */
-  def writeFileToWriter(file : JSFile, w : java.io.Writer) : Unit = {
-    val ctx = CompactContext.forWriter(w, file.globals)
-    file.writer(ctx)
-  }
+  def writeFileToWriter(file : JSFile, w : java.io.Writer) : Unit =
+    file.writer(w)
 
 
+  /** Extracts base from expression. */
+  private def expr2base(e : Expression) : E =
+    e.base
 
-  /** Quotes an input string. */
-  private[model] def quoteString(expr : String) : String = {
-    val buf = new StringBuilder(expr.length + 2)
-    buf += '"'
+  /** Extracts base from expressions. */
+  private def exprs2base(exprs : Seq[Expression]) : Seq[E] =
+    exprs map expr2base
 
-    var ptr = 0
-    while (ptr < expr.length) {
-      expr.charAt(ptr) match {
-        case '\\' ⇒ buf ++= "\\\\"
-        case '\r' ⇒ buf ++= "\\r"
-        case '\n' ⇒ buf ++= "\\n"
-        case '\t' ⇒ buf ++= "\\t"
-        case '\b' ⇒ buf ++= "\\b"
-        case '\"' ⇒ buf ++= "\\\""
-        case x ⇒ buf += x
-      }
-      ptr += 1
-    }
+  /** Extracts base from statement. */
+  private def stmt2base(stmt : Statement) : S =
+    stmt.base
 
-    buf += '"'
-    buf.toString
-  }
-
-
-  /** Creates a plaintext expression. */
-  private def textExpr(value : String) : Expression =
-    new Expression(0, value, isMinusSafe = !value.startsWith("-"))
-
-
-  /** Creates a prefix operation. */
-  private def prefixOp(peer : LeftValue, op : String) : Expression =
-    new Expression(2, outClass.seq(op, peer.writer),
-      isMinusSafe = !op.startsWith("-"))
-
-
-  /** Creates a postfix operation. */
-  private def postfixOp(peer : LeftValue, op : String) : Expression =
-    new Expression(2, outClass.seq(peer.writer, op),
-      canStartStatement = peer.canStartStatement)
-
-
-  /** Creates a new unary expression. */
-  private def unary(base : Expression, code : String) : Expression =
-    new Expression(4,
-      outClass.seq(code, bracketed(base.priority > 4, "(", ")", base.writer)))
-
-
-  /** Creates a binary expression. */
-  private def binary(
-      left : Expression, right : Expression, sign : String,
-      bpriority : Int) : Expression = {
-    val lbracket = left.priority > bpriority
-    val rbracket = right.priority >= bpriority
-    new Expression(bpriority, outClass.seq(
-        bracketed(lbracket, "(", ")", left.writer),
-        sign,
-        bracketed(rbracket, "(", ")", right.writer)
-      ), canStartStatement = left.canStartStatement || lbracket)
-  }
-
-
-  /** Creates a text statement. */
-  private def textStmt(text : String) : Statement =
-    new Statement(text + ";")
-
-
-  /** Creates a statement with a label. */
-  private def labeledStmt(text : String, lbl : AnyRef) : Statement =
-    new Statement(outClass.seq(
-      text, " ", labelWriter(lbl), ";"
-    ))
-
-
-  /** Statement with an expression as argument. */
-  private def kwdStmt(kwd :String, expr : Expression) : Statement =
-    new Statement(outClass.seq(
-      kwd, " ", expr.writer, ";"
-    ))
-
-
-  /** Creates a subcontext writer. */
-  private def subContext(locals : Set[AnyRef], writer : OutFragment) : OutFragment =
-    ctx ⇒ writer(ctx.sub(locals, Seq.empty))
-
-
-  /** Creates a writer in a sub-function context. */
-  private def subFunction(
-        locals : Iterable[AnyRef],
-        labels : Iterable[AnyRef],
-        writer : OutFragment)
-      : OutFragment =
-    ctx ⇒ writer(ctx.sub(locals, labels))
-
-  /** Writes item with separator. */
-  private def sepBy(separator : OutFragment, items : Iterable[OutFragment]) : OutFragment =
-    outClass.seq(intersperse(separator, items) :_*)
-
-  /**
-   * Interperses element between elements of the iterable.
-   * For example, interperse(1, [a,b,c]) = [a,1,b,1,c,1]
-   */
-  private def intersperse[T](item : T, items : Iterable[T]) : Seq[T] = {
-    val itr = items.iterator
-    if (!itr.hasNext)
-      return Seq.empty
-
-    val res = new ArrayBuffer[T]
-    res += itr.next()
-
-    while (itr.hasNext) {
-      res += item
-      res += itr.next()
-    }
-
-    return res
-  }
-
-
-  /**
-   * Creates a new writer for the variable.
-   * @param name variable name (identifier).
-   */
-  private def varWriter(name : AnyRef) : OutFragment =
-    ctx ⇒ ctx.writeVariable(name)
-
-
-  /** Creates a label writer. */
-  private def labelWriter(name : AnyRef) : OutFragment =
-    ctx ⇒ ctx.writeLabel(name)
-
-
-  /** Creates a possibly-bracketed expression. */
-  private[model] def bracketed(cond : Boolean,
-        lbracket : OutFragment, rbracket : OutFragment,
-        content : OutFragment) : OutFragment =
-    if (cond)
-      outClass.seq(lbracket, content, rbracket)
-    else
-      content
-
-
-  /** Writes an expression as comma-safe. */
-  private def commaSafe(expr : Expression) : OutFragment =
-    bracketed(!expr.isCommaSafe, "(", ")", expr.writer)
-
-
-  /** Creates a member accessor writer. */
-  private def memberAccessorWriter(item : Expression) : OutFragment =
-    item.simpleMemberAccessor match {
-      case None ⇒ outClass.seq("[", item.writer, "]")
-      case Some(x) ⇒ outClass.seq(".", x)
-    }
-
-
-  /** Implicit conversion from string to fragment. */
-  implicit private def str2fragment(str : String) : OutFragment =
-    outClass.token(str)
-
+  /** Extracts bases from statements. */
+  private def stmts2base(stmts : Seq[Statement]) : Seq[S] =
+    stmts map stmt2base
 
   /** Checks, if value is valid identifier. */
   private def validSimpleId(value :String) : Boolean = {
@@ -852,20 +622,16 @@ final object Model {
       labels : Seq[AnyRef],
       stmt : Seq[Statement]) : FunctionBody = {
 
-    val allLocals : Set[AnyRef] = (
-      args ++ vars ++ funcs.map(x ⇒ x._1)).toSet
+    val vstmts =
+      if (vars.isEmpty)
+        Seq.empty[S]
+      else
+        Seq(model.defVars(vars.map(x ⇒ ((x, None)))))
 
-    val res = new ArrayBuffer[OutFragment]
-    res += "(" += sepBy(",", args.map(varWriter)) += "){"
+    val fnstmts =
+      funcs.map(f ⇒
+        model.functionStmt(Some(f._1), f._2.args, f._2.statements))
 
-    if (!vars.isEmpty)
-      res += "var " += sepBy(",", vars.map(varWriter)) += ";"
-
-    funcs.foreach(f ⇒
-      res += outClass.seq("function ", varWriter(f._1), f._2.writer))
-
-    res ++= stmt.map(_.stmtWriter) += "}"
-
-    new FunctionBody(subFunction(allLocals, labels, outClass.seq(res : _*)))
+    new FunctionBody(args, vstmts ++ fnstmts ++ stmts2base(stmt))
   }
 }

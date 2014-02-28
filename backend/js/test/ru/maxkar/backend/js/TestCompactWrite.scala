@@ -276,10 +276,10 @@ final class TestCompactWrite extends JUnitSuite {
   /** Tests a for-in statement. */
   @Test
   def testForIn() : Unit = {
-    "for (g1 in []){2;3;}" ?= forIn(variable("g1"), arrayliteral(), Seq(2, 3))
-    "for (g1 in [])2;" ?= forIn(variable("g1"), arrayliteral(), Seq(2))
-    "for (g1 in []){}" ?= forIn(variable("g1"), arrayliteral(), Seq())
-    "for (g1 in 1,2){}" ?= forIn(variable("g1"), seqExpr(1,2), Seq())
+    "for(g1 in []){2;3;}" ?= forIn(variable("g1"), arrayliteral(), Seq(2, 3))
+    "for(g1 in [])2;" ?= forIn(variable("g1"), arrayliteral(), Seq(2))
+    "for(g1 in []){}" ?= forIn(variable("g1"), arrayliteral(), Seq())
+    "for(g1 in 1,2){}" ?= forIn(variable("g1"), seqExpr(1,2), Seq())
   }
 
 
@@ -343,8 +343,8 @@ final class TestCompactWrite extends JUnitSuite {
     "try{1;}finally{3;4;}" ?= withFin(Seq(1), Seq(3,4))
     "try{1;2;}finally{3;}" ?= withFin(Seq(1,2), Seq(3))
     "try{}finally{3;4;}" ?= withFin(Seq(), Seq(3,4))
-    "try{1;2;}finally{}" ?= withFin(Seq(1,2), Seq())
-    "try{}finally{}" ?= withFin(Seq(), Seq())
+    "{1;2;}" ?= withFin(Seq(1,2), Seq())
+    "{}" ?= withFin(Seq(), Seq())
   }
 
   /** Tests a while statement. */
