@@ -3,7 +3,6 @@ package ru.maxkar.backend.js.model
 import java.math.BigInteger
 import java.math.BigDecimal
 
-import ru.maxkar.backend.js.out.CompactContext
 import ru.maxkar.backend.js.out.writer.Writer
 import ru.maxkar.backend.js.out.writer.ContextWriter
 
@@ -61,14 +60,6 @@ final object Model {
   val arguments : Expression = new Expression(model.exprArguments)
 
 
-  /** Creates a function definition. */
-  def defun(id : AnyRef, args : Seq[AnyRef], locals : Seq[AnyRef],
-      localFuncs : Seq[(AnyRef, FunctionBody)],
-      labels : Seq[AnyRef],
-      body : Seq[Statement]) : (AnyRef, FunctionBody) =
-    (id, mkFunctionBody(args, locals, localFuncs, labels, body))
-
-
   /** Creates a string expression. */
   def literal(expr : String) : Expression =
     new Expression(model.literal(expr),
@@ -121,7 +112,6 @@ final object Model {
   /** Creates an anonymous local function. */
   def anonfun(args : Seq[AnyRef], locals : Seq[AnyRef],
       localFuncs : Seq[(AnyRef, FunctionBody)],
-      labels : Seq[AnyRef],
       body : Seq[Statement]) : Expression = {
 
     val locDef =
@@ -142,7 +132,6 @@ final object Model {
   /** Creates a named (self-referentiable) ocal function. */
   def namedfun(id : AnyRef, args : Seq[AnyRef], locals : Seq[AnyRef],
       localFuncs : Seq[(AnyRef, FunctionBody)],
-      labels : Seq[AnyRef],
       body : Seq[Statement]) : Expression = {
     val locDef =
       if (locals.isEmpty)
@@ -619,7 +608,6 @@ final object Model {
       args : Seq[AnyRef],
       vars : Seq[AnyRef],
       funcs : Seq[(AnyRef, FunctionBody)],
-      labels : Seq[AnyRef],
       stmt : Seq[Statement]) : FunctionBody = {
 
     val vstmts =

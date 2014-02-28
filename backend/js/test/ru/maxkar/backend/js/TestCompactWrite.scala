@@ -62,8 +62,9 @@ final class TestCompactWrite extends JUnitSuite {
   /** Tests local variables. */
   @Test
   def testLocalRefs1() : Unit = {
-    val df = defun("test", Seq("x1", "x2"), Seq.empty, Seq.empty, Seq.empty,
-      Seq(variable("x1"), variable("x2")))
+    val df = ("test", Model.mkFunctionBody(
+      Seq("x1", "x2"), Seq.empty, Seq.empty,
+      Seq(variable("x1"), variable("x2"))))
     val f = file(Seq(("test","test")), Seq.empty, Seq(("test", df._2)), Seq.empty)
 
     "function test(a,b){a;b;}" ?= f
@@ -73,7 +74,7 @@ final class TestCompactWrite extends JUnitSuite {
   @Test
   def testAnonfun() : Unit = {
     "1+function(a,b){a;b;};" ?=
-      add(1, anonfun(Seq("x1", "x2"), Seq.empty, Seq.empty, Seq.empty,
+      add(1, anonfun(Seq("x1", "x2"), Seq.empty, Seq.empty,
         Seq(variable("x1"), variable("x2"))))
   }
 
@@ -81,7 +82,7 @@ final class TestCompactWrite extends JUnitSuite {
   @Test
   def testNamedfun() : Unit = {
     "1+function a(b,c){a;};" ?=
-      add(1, namedfun("z", Seq("x1", "x2"), Seq.empty, Seq.empty, Seq.empty,
+      add(1, namedfun("z", Seq("x1", "x2"), Seq.empty, Seq.empty,
         Seq(variable("z"))))
   }
 
@@ -89,10 +90,10 @@ final class TestCompactWrite extends JUnitSuite {
   @Test
   def testFunEsc() : Unit = {
     "(function a(b,c){a;}+1);" ?=
-      add(namedfun("z", Seq("x1", "x2"), Seq.empty, Seq.empty, Seq.empty,
+      add(namedfun("z", Seq("x1", "x2"), Seq.empty, Seq.empty,
         Seq(variable("z"))), 1)
     "(function(a,b){a;b;}+1);" ?=
-      add(anonfun(Seq("x1", "x2"), Seq.empty, Seq.empty, Seq.empty,
+      add(anonfun(Seq("x1", "x2"), Seq.empty, Seq.empty,
         Seq(variable("x1"), variable("x2"))), 1)
   }
 
@@ -241,7 +242,7 @@ final class TestCompactWrite extends JUnitSuite {
     "break;" ?= breakOuter
 
     "(function(){a:break a;});" ?=
-      anonfun(Seq.empty, Seq.empty, Seq.empty, Seq("x1"),
+      anonfun(Seq.empty, Seq.empty, Seq.empty,
         Seq(label("x1", breakL("x1"))))
   }
 
@@ -251,7 +252,7 @@ final class TestCompactWrite extends JUnitSuite {
     "continue;" ?= continueOuter
 
     "(function(){a:continue a;});" ?=
-      anonfun(Seq.empty, Seq.empty, Seq.empty, Seq("x1"),
+      anonfun(Seq.empty, Seq.empty, Seq.empty,
         Seq(label("x1", continueL("x1"))))
   }
 

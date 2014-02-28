@@ -31,7 +31,7 @@ private[out] object FuncComp {
         tl : Seq[SExpression[BaseItem]],
         trace : HostTrace) : FunctionBody = {
     val t = compFunction(host, scope, isVaarg, args, tl, trace)
-    Model.mkFunctionBody(t._1, t._2, t._3, t._4, t._5)
+    Model.mkFunctionBody(t._1, t._2, t._3, t._4)
   }
 
   /** Compiles a function body. */
@@ -41,7 +41,7 @@ private[out] object FuncComp {
         isVaarg : Boolean,
         args : Seq[SExpression[BaseItem]],
         tl : Seq[SExpression[BaseItem]],
-        trace : HostTrace) : (Seq[AnyRef], Seq[AnyRef], Seq[(AnyRef, FunctionBody)], Seq[AnyRef], Seq[Statement]) = {
+        trace : HostTrace) : (Seq[AnyRef], Seq[AnyRef], Seq[(AnyRef, FunctionBody)], Seq[Statement]) = {
 
 
     val root = new RootScopeBuilder(host)
@@ -96,7 +96,6 @@ private[out] object FuncComp {
       root.getArgs,
       root.getVars,
       functab,
-      root.getLabels,
       vaargsinit ++ stmtb.compileToSeq(locCtx))
   }
 }
