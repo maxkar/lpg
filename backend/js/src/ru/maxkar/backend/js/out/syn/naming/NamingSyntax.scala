@@ -10,12 +10,12 @@ import java.math.BigDecimal
  * This allows to use non-string identifiers for the variables (identity ids for example).
  */
 final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
-    extends Syntax[V, L, NamingExpression[BE, V, L], NamingStatement[V, L, BS]] {
+    extends Syntax[V, L, NamingExpression[V, L, BE], NamingStatement[V, L, BS]] {
 
   import NamingSyntax._
 
   /** Expression type synonim. */
-  private type E = NamingExpression[BE, V, L]
+  private type E = NamingExpression[V, L, BE]
   /** Statement type synonim. */
   private type S = NamingStatement[V, L, BS]
   /** Context type alias. */
@@ -72,8 +72,8 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       case InstES(sub) ⇒ iexpr(base.arrayLiteral(sub))
       case _ ⇒
         dexpr(
-          items.foldLeft(Set.empty[V])((s, i) ⇒ s ++ i.usedVariables),
-          c ⇒ base.arrayLiteral(items map (i ⇒ i.resolve(c))))
+          analyzeExprs(items),
+          c ⇒ base.arrayLiteral(c.resolveExprs(items)))
     }
 
   override def objectLiteral(items : Seq[(String, E)]) : E =
@@ -101,7 +101,7 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
         base.functionExpr(
           name.map(subctx.variable),
           args.map(subctx.variable),
-          body.map(stmt ⇒ stmt.resolve(subctx)))
+          subctx.resolveStmts(body))
       })
   }
 
@@ -116,11 +116,10 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       case (InstE(h), InstES(a)) ⇒
         iexpr(base.create(h, a))
       case _ ⇒ dexpr(
-        args.foldLeft(host.usedVariables)(
-          (s, e) ⇒ s ++ e.usedVariables),
+        host.usedVariables ++ analyzeExprs(args),
         ctx ⇒ base.create(
           host.resolve(ctx),
-          args.map(a ⇒ a.resolve(ctx)))
+          ctx.resolveExprs(args))
         )
     }
 
@@ -129,11 +128,10 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       case (InstE(h), InstES(a)) ⇒
         iexpr(base.call(h, a))
       case _ ⇒ dexpr(
-        args.foldLeft(host.usedVariables)(
-          (s, e) ⇒ s ++ e.usedVariables),
+        host.usedVariables ++ analyzeExprs(args),
         ctx ⇒ base.call(
           host.resolve(ctx),
-          args.map(a ⇒ a.resolve(ctx)))
+          ctx.resolveExprs(args))
         )
     }
 
@@ -287,11 +285,10 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       case (InstE(f), InstES(t)) ⇒
         iexpr(base.seqExpr(f, t))
       case _ ⇒ dexpr(
-        tail.foldLeft(first.usedVariables)(
-          (s, v) ⇒ s ++ v.usedVariables),
+        first.usedVariables ++ analyzeExprs(tail),
         ctx ⇒ base.seqExpr(
           first.resolve(ctx),
-          tail.map(x ⇒ x.resolve(ctx)))
+          ctx.resolveExprs(tail))
         )
     }
 
@@ -326,7 +323,7 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
     stmt(
       cond.usedVariables ++ uv, dv, dl,
       ctx ⇒ base.doWhile(
-        body.map(b ⇒ b.resolve(ctx)),
+        ctx.resolveStmts(body),
         cond.resolve(ctx)))
   }
 
@@ -347,10 +344,10 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       allUsed, allDef, dl,
       ctx ⇒ base.forVars(
         variables.map(v ⇒
-          (ctx.variable(v._1), v._2.map(e ⇒ e.resolve(ctx)))),
-        condition.map(e ⇒ e.resolve(ctx)),
-        finalExpression.map(e ⇒ e.resolve(ctx)),
-        body.map(s ⇒ s.resolve(ctx)))
+          (ctx.variable(v._1), v._2.map(ctx.resolveExpr))),
+        condition.map(ctx.resolveExpr),
+        finalExpression.map(ctx.resolveExpr),
+        ctx.resolveStmts(body))
     )
   }
 
@@ -367,23 +364,23 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
     stmt(
       allUsed, dv, dl,
       ctx ⇒ base.forExisting(
-        init.map(e ⇒ e.resolve(ctx)),
-        condition.map(e ⇒ e.resolve(ctx)),
-        finalExpression.map(e ⇒ e.resolve(ctx)),
-        body.map(s ⇒ s.resolve(ctx)))
+        init.map(ctx.resolveExpr),
+        condition.map(ctx.resolveExpr),
+        finalExpression.map(ctx.resolveExpr),
+        ctx.resolveStmts(body))
     )
   }
 
   override def forVariableIn(variable : V, collection : E, body : Seq[S]) : S = {
     val (uv, dv, dl) = analyze(body)
-    val allUsed = uv ++ collection.usedVariables
+    val allUsed = uv ++ collection.usedVariables + variable
 
     stmt(
       allUsed, dv + variable, dl,
       ctx ⇒ base.forVariableIn(
         ctx.variable(variable),
         collection.resolve(ctx),
-        body.map(x ⇒ x.resolve(ctx)))
+        ctx.resolveStmts(body))
     )
   }
 
@@ -396,7 +393,7 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       ctx ⇒ base.forExistingIn(
         iterator.resolve(ctx),
         collection.resolve(ctx),
-        body.map(x ⇒ x.resolve(ctx)))
+        ctx.resolveStmts(body))
     )
   }
 
@@ -405,13 +402,13 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       analyze(body)
     val allDefined = innerDefined ++ name ++ args
     stmt(
-      allReferenced -- allDefined, name.toSet, Set.empty,
+      allReferenced -- allDefined ++ name, name.toSet, Set.empty,
       c ⇒ {
         val subctx = c.sub(allDefined, allLabels)
         base.functionStmt(
           name.map(subctx.variable),
           args.map(subctx.variable),
-          body.map(stmt ⇒ stmt.resolve(subctx)))
+          subctx.resolveStmts(body))
       })
   }
 
@@ -424,8 +421,8 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       allUsed, tdv ++ fdv, tdl ++ fdl,
       ctx ⇒ base.ifStatement(
         condition.resolve(ctx),
-        onTrue.map(x ⇒ x.resolve(ctx)),
-        onFalse.map(x ⇒ x.resolve(ctx)))
+        ctx.resolveStmts(onTrue),
+        ctx.resolveStmts(onFalse))
     )
   }
 
@@ -435,7 +432,7 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       uv, dv, dl + label,
       ctx ⇒ base.label(
         ctx.label(label),
-        body.map(x ⇒ x.resolve(ctx))))
+        ctx.resolveStmts(body)))
   }
 
   override val retNone : S =
@@ -461,8 +458,8 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
     stmt(uv ++ exprUsed, dv, dl,
       ctx ⇒ base.chooseValue(
         discriminator.resolve(ctx),
-        cases.map(c ⇒ (c._1.resolve(ctx), c._2.map(s ⇒ s.resolve(ctx)))),
-        onElse.map(s ⇒ s.resolve(ctx)))
+        cases.map(c ⇒ (c._1.resolve(ctx), ctx.resolveStmts(c._2))),
+        ctx.resolveStmts(onElse))
     )
   }
 
@@ -481,31 +478,31 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
       case None ⇒
         stmt(buv ++ fuv, bdv ++ fdv, bdl ++ fdl,
           ctx ⇒ base.tryCatch(
-            body.map(x ⇒ x.resolve(ctx)),
+            ctx.resolveStmts(body),
             None,
-            finalizer.map(x ⇒ x.resolve(ctx)))
+            ctx.resolveStmts(finalizer))
         )
       case Some((v, exn)) ⇒
         val (euv, edv, edl) = analyze(exn)
         stmt(buv ++ fuv ++ (euv - v), bdv ++ fdv ++ edv, bdl ++ fdl ++ edl,
           ctx ⇒ {
-            val sub = ctx.sub(Set(v), Set.empty)
+            val sub = ctx.subExn(v)
             base.tryCatch(
-              body.map(x ⇒ x.resolve(ctx)),
-              Some((sub.variable(v), exn.map(x ⇒ x.resolve(sub)))),
-              finalizer.map(x ⇒ x.resolve(ctx)))
+              ctx.resolveStmts(body),
+              Some((sub.variable(v), sub.resolveStmts(exn))),
+              ctx.resolveStmts(finalizer))
           })
     }
   }
 
   override def defVars(definitions : Seq[(V, Option[E])]) : S = {
     val allVars = definitions.map(_._1).toSet
-    val usedVars = definitions.foldLeft(Set.empty[V])(
+    val usedVars = definitions.foldLeft(allVars)(
       (s, v) ⇒ s ++ varsOfOpt(v._2))
 
     stmt(usedVars, allVars, Set.empty,
       ctx ⇒ base.defVars(definitions.map(
-        d ⇒ (ctx.variable(d._1), d._2.map(v ⇒ v.resolve(ctx)))))
+        d ⇒ (ctx.variable(d._1), d._2.map(ctx.resolveExpr))))
     )
   }
 
@@ -514,7 +511,7 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
     stmt(uv ++ cond.usedVariables, dv, dl,
       ctx ⇒ base.whileDo(
         cond.resolve(ctx),
-        body.map(x ⇒ x.resolve(ctx)))
+        ctx.resolveStmts(body))
     )
   }
 
@@ -565,13 +562,18 @@ final class NamingSyntax[V, L, BE, BS](base : Syntax[String, String, BE, BS])
    */
   private def analyze(body : Seq[S]) : (Set[V], Set[V], Set[L]) = {
     val allReferenced = body.foldLeft(Set.empty[V])(
-        (vs, s) ⇒ vs ++ s.referencedVariables)
+        (vs, s) ⇒ vs ++ s.usedVariables)
     val allDefined = body.foldLeft(Set.empty[V])(
         (vs, s) ⇒ vs ++ s.definedVariables)
     val allLabels = body.foldLeft(Set.empty[L])(
-        (vs, s) ⇒ vs ++ s.referencedLabels)
+        (vs, s) ⇒ vs ++ s.usedLabels)
     (allReferenced, allDefined, allLabels)
   }
+
+  /** Analyzes list of expressions and returns set of all used variables. */
+  private def analyzeExprs(body : Seq[E]) : Set[V] =
+    body.foldLeft(Set.empty[V])(
+      (s, e) ⇒ s ++ e.usedVariables)
 
   /* Utilities. */
 }
