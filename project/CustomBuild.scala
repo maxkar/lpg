@@ -166,6 +166,9 @@ object CustomBuild extends Build {
     lispy_base, hunk, lib_scoping_simple, be_js,
     coverity_escapers)
 
+  lazy val applicativeExprSample = prj(
+    "apps/applicative-expr")
+
 
   lazy val root = Project("root", file("."),
     settings = buildSettings ++ unidocSettings ++ Seq(Tasks.internalName := "root")
@@ -175,6 +178,7 @@ object CustomBuild extends Build {
     lib_scoping_simple,
     lispy_scoping,
     be_js,
-    jssample
+    jssample,
+    applicativeExprSample
   )
 }
