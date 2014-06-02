@@ -153,6 +153,9 @@ object CustomBuild extends Build {
   /* Projects. */
   lazy val lib_alias = prj("lib/jalias")
   lazy val hunk = prj("lib/hunk")
+  lazy val lib_collections = prj("lib/coll")
+
+  lazy val lib_comp_vars = prj("lib/vars", lib_collections)
 
   lazy val lispy_base = prj("frontend/lispy/base")
   lazy val lispy_scoping = prj("frontend/lispy/scoping",
@@ -179,6 +182,8 @@ object CustomBuild extends Build {
     lispy_scoping,
     be_js,
     jssample,
-    applicativeExprSample
+    applicativeExprSample,
+    lib_collections,
+    lib_comp_vars
   )
 }
