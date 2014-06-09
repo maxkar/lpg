@@ -167,7 +167,7 @@ object CustomBuild extends Build {
 
   lazy val jssample = prj("apps/jssample",
     lispy_base, hunk, lib_scoping_simple, be_js,
-    coverity_escapers)
+    coverity_escapers, lib_comp_vars, lib_collections)
 
   lazy val applicativeExprSample = prj(
     "apps/applicative-expr")

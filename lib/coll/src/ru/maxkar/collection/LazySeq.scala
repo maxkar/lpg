@@ -25,12 +25,12 @@ abstract sealed class LazySeq[+T] private()
 
   /** Addition to right. */
   def :+[T1 >: T] (item : T1) : LazySeq[T1] =
-    this ++ LazySeq.make(item)
+    this ++ LazySeq(item)
 
 
   /** Addition to left. */
   def +:[T1 >: T] (item : T1) : LazySeq[T1] =
-    LazySeq.make(item) ++ this
+    LazySeq(item) ++ this
 
 }
 
@@ -100,7 +100,7 @@ object LazySeq {
   val empty : LazySeq[Nothing] = Empty
 
   /** Creates a new lazy sequence. */
-  def make[T](items : T*) : LazySeq[T] =
+  def apply[T](items : T*) : LazySeq[T] =
     items match {
       case Seq() ⇒ empty
       case Seq(x) ⇒ new Singleton(x)
