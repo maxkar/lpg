@@ -94,7 +94,7 @@ object MySettings {
     libraryDependencies += "junit" % "junit" % "4.10" % "test",
 //libraryDependencies += "com.novocode" % "junit-interface" % "0.10" % "test",
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-a", "-s"),
-    scalacOptions ++= Seq("-feature"/*, "-optimise"*/),
+    scalacOptions ++= Seq("-feature", "-unchecked"/*, "-optimise"*/),
     scalacOptions in (Compile, doc) ++= Opts.doc.title("Language playground")
   ) ++ Tasks.fullAssembly ++ Seq(
     trashDir := new File(".target").getAbsoluteFile(),
